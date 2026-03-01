@@ -13,16 +13,25 @@ import { useT } from "@/lib/i18n/translations"
 type TrailerDialogProps = {
   readonly videos: VideoResults
   readonly title: string
+  readonly onOpenChange?: (open: boolean) => void
 }
 
-export function TrailerDialog({ videos, title }: TrailerDialogProps) {
+export function TrailerDialog({ videos, title, onOpenChange }: TrailerDialogProps) {
   const t = useT()
   const [isOpen, setIsOpen] = useState(false)
   const trailerKey = getTrailerKey(videos.results)
 
+  const handleOpenChange = useCallback(
+    (open: boolean): void => {
+      setIsOpen(open)
+      onOpenChange?.(open)
+    },
+    [onOpenChange]
+  )
+
   const handleOpen = useCallback((): void => {
-    setIsOpen(true)
-  }, [])
+    handleOpenChange(true)
+  }, [handleOpenChange])
 
   if (!trailerKey) return null
 
@@ -37,7 +46,7 @@ export function TrailerDialog({ videos, title }: TrailerDialogProps) {
         {t.detail.watchTrailer}
       </button>
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog open={isOpen} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-4xl border-border bg-background p-0 overflow-hidden">
           <DialogTitle className="sr-only">{title} — {t.detail.trailer}</DialogTitle>
           <div className="relative aspect-video w-full">

@@ -98,6 +98,25 @@ export function MediaDetail(props: MediaDetailProps): ReactNode {
     }, 3000)
   }, [])
 
+  const handleTrailerDialogChange = useCallback(
+    (open: boolean): void => {
+      const iframe = iframeRef.current
+      if (!iframe?.contentWindow) return
+      const cmd = open ? "mute" : "unMute"
+      iframe.contentWindow.postMessage(
+        JSON.stringify({ event: "command", func: cmd, args: "" }),
+        "*"
+      )
+      if (!open) {
+        iframe.contentWindow.postMessage(
+          JSON.stringify({ event: "command", func: "setVolume", args: [30] }),
+          "*"
+        )
+      }
+    },
+    []
+  )
+
   const handleRate = useCallback(
     (rating: number): void => {
       if (!isInLibrary) {
@@ -364,7 +383,7 @@ export function MediaDetail(props: MediaDetailProps): ReactNode {
                 posterPath={data.poster_path}
                 size="lg"
               />
-              <TrailerDialog videos={data.videos} title={title} />
+              <TrailerDialog videos={data.videos} title={title} onOpenChange={handleTrailerDialogChange} />
               <div className="flex items-center gap-2">
                 <span className="text-xs text-text-tertiary">{t.detail.yourRating}</span>
                 <RatingStars
