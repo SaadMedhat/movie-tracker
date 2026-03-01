@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useRef, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import Image from "next/image"
-import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { posterHover, staggerItem } from "@/lib/motion"
 import { getPosterUrl, formatVoteAverage, getMediaTitle, getMediaDate, getTrailerKey } from "@/lib/utils/media"
@@ -34,6 +34,7 @@ export function PosterCard({
   mediaType,
   className,
 }: PosterCardProps) {
+  const router = useRouter()
   const displayTitle = getMediaTitle({ title, name })
   const displayDate = getMediaDate({
     release_date: releaseDate,
@@ -51,7 +52,9 @@ export function PosterCard({
   const { data: videoData } = useMediaVideos(mediaType, id, isHovering)
   const trailerKey = videoData ? getTrailerKey(videoData.results) : null
 
+  // Track whether a long press activated the preview — if so, block navigation
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const previewActiveRef = useRef(false)
 
   const handleMouseEnter = useCallback(() => {
     if (leaveTimerRef.current) {
@@ -70,7 +73,9 @@ export function PosterCard({
 
   // Long press for mobile (500ms)
   const handleTouchStart = useCallback(() => {
+    previewActiveRef.current = false
     longPressRef.current = setTimeout(() => {
+      previewActiveRef.current = true
       setIsHovering(true)
     }, 500)
   }, [])
@@ -80,11 +85,26 @@ export function PosterCard({
       clearTimeout(longPressRef.current)
       longPressRef.current = null
     }
-    if (isHovering) {
+    if (previewActiveRef.current) {
+      // Preview was active — close it, don't navigate
       setIsHovering(false)
       setIframeReady(false)
+      previewActiveRef.current = false
     }
-  }, [isHovering])
+  }, [])
+
+  // Block click navigation if preview was just dismissed
+  const handleClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (previewActiveRef.current) {
+        e.preventDefault()
+        return
+      }
+      // Normal desktop click or short tap — navigate
+      router.push(href)
+    },
+    [router, href]
+  )
 
   // Progress bar: visible while the trailer is actually playing
   const showProgress = isHovering && iframeReady && trailerKey
@@ -94,108 +114,112 @@ export function PosterCard({
       variants={staggerItem}
       initial="hidden"
       animate="visible"
-      className={cn("group relative", className)}
+      className={cn("group relative cursor-pointer", className)}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
+      onClick={handleClick}
+      role="link"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") router.push(href)
+      }}
     >
-      <Link href={href} className="block">
-        <motion.div
-          initial="rest"
-          whileHover="hover"
-          className="relative aspect-[2/3] overflow-hidden rounded-lg bg-surface"
-        >
-          {posterUrl ? (
-            <Image
-              src={posterUrl}
-              alt={displayTitle}
-              fill
-              sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 200px"
-              className="object-cover transition-opacity duration-500"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-surface-elevated">
-              <FilmIcon className="h-10 w-10 text-text-ghost" />
-            </div>
-          )}
+      <motion.div
+        initial="rest"
+        whileHover="hover"
+        className="relative aspect-[2/3] overflow-hidden rounded-lg bg-surface"
+      >
+        {posterUrl ? (
+          <Image
+            src={posterUrl}
+            alt={displayTitle}
+            fill
+            sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 200px"
+            className="object-cover transition-opacity duration-500"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-surface-elevated">
+            <FilmIcon className="h-10 w-10 text-text-ghost" />
+          </div>
+        )}
 
-          {/* Trailer preview overlay */}
-          <AnimatePresence>
-            {isHovering && trailerKey ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: iframeReady ? 1 : 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="absolute inset-[-2px] z-10 overflow-hidden rounded-lg bg-black"
-              >
-                <iframe
-                  ref={iframeRef}
-                  src={`https://www.youtube-nocookie.com/embed/${trailerKey}?autoplay=1&mute=1&controls=0&showinfo=0&rel=0&modestbranding=1&start=5&loop=1&playlist=${trailerKey}&enablejsapi=1`}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
-                  className="pointer-events-none absolute left-1/2 top-1/2 h-[400%] w-[400%] -translate-x-1/2 -translate-y-1/2"
-                  tabIndex={-1}
-                  aria-hidden
-                  onLoad={() => setIframeReady(true)}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30" />
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-
-          {/* Mute toggle on preview */}
-          {showProgress ? (
-            <MuteToggle
-              iframeRef={iframeRef}
-              size="sm"
-              className="absolute right-1.5 top-1.5 z-30"
-            />
+        {/* Trailer preview overlay */}
+        <AnimatePresence>
+          {isHovering && trailerKey ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: iframeReady ? 1 : 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="absolute inset-[-2px] z-10 overflow-hidden rounded-lg bg-black"
+            >
+              <iframe
+                ref={iframeRef}
+                src={`https://www.youtube-nocookie.com/embed/${trailerKey}?autoplay=1&mute=1&controls=0&showinfo=0&rel=0&modestbranding=1&start=5&loop=1&playlist=${trailerKey}&enablejsapi=1`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
+                className="pointer-events-none absolute left-1/2 top-1/2 h-[400%] w-[400%] -translate-x-1/2 -translate-y-1/2"
+                tabIndex={-1}
+                aria-hidden
+                onLoad={() => setIframeReady(true)}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30" />
+            </motion.div>
           ) : null}
+        </AnimatePresence>
 
-          {/* YouTube-style progress bar while trailer plays */}
-          <AnimatePresence>
-            {showProgress ? (
+        {/* Mute toggle on preview */}
+        {showProgress ? (
+          <MuteToggle
+            iframeRef={iframeRef}
+            size="sm"
+            className="absolute right-1.5 top-1.5 z-30"
+          />
+        ) : null}
+
+        {/* YouTube-style progress bar while trailer plays */}
+        <AnimatePresence>
+          {showProgress ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute bottom-0 left-0 right-0 z-30 h-[3px] overflow-hidden rounded-b-lg bg-white/20"
+            >
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute bottom-0 left-0 right-0 z-30 h-[3px] overflow-hidden rounded-b-lg bg-white/20"
-              >
-                <motion.div
-                  className="h-full origin-left bg-red-500"
-                  initial={{ scaleX: 0 }}
-                  animate={{ scaleX: 1 }}
-                  transition={{ duration: 30, ease: "linear" }}
-                />
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
+                className="h-full origin-left bg-red-500"
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ duration: 30, ease: "linear" }}
+              />
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
 
-          {/* Hover info overlay */}
-          <motion.div
-            variants={posterHover}
-            className="absolute inset-0 z-20 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/40 to-transparent p-3"
-          >
-            <p className="font-display text-sm font-semibold leading-tight text-white line-clamp-2">
-              {displayTitle}
-            </p>
-            <div className="mt-1 flex items-center gap-2 text-xs text-text-secondary">
-              {year ? <span>{year}</span> : null}
-              {voteAverage && voteAverage > 0 ? (
-                <>
-                  <span className="text-text-ghost">·</span>
-                  <span className="flex items-center gap-0.5 text-cinema-amber">
-                    <StarSmallIcon className="h-3 w-3" />
-                    {formatVoteAverage(voteAverage)}
-                  </span>
-                </>
-              ) : null}
-            </div>
-          </motion.div>
+        {/* Hover info overlay */}
+        <motion.div
+          variants={posterHover}
+          className="absolute inset-0 z-20 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/40 to-transparent p-3"
+        >
+          <p className="font-display text-sm font-semibold leading-tight text-white line-clamp-2">
+            {displayTitle}
+          </p>
+          <div className="mt-1 flex items-center gap-2 text-xs text-text-secondary">
+            {year ? <span>{year}</span> : null}
+            {voteAverage && voteAverage > 0 ? (
+              <>
+                <span className="text-text-ghost">·</span>
+                <span className="flex items-center gap-0.5 text-cinema-amber">
+                  <StarSmallIcon className="h-3 w-3" />
+                  {formatVoteAverage(voteAverage)}
+                </span>
+              </>
+            ) : null}
+          </div>
         </motion.div>
-      </Link>
+      </motion.div>
     </motion.div>
   )
 }
