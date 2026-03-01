@@ -9,8 +9,6 @@ import { SearchInput, SearchResults } from "@/components/search"
 import { PosterCard } from "@/components/media"
 import { type Movie } from "@/types/movie"
 import { staggerContainer, staggerItem, fadeInUp } from "@/lib/motion"
-import { Skeleton } from "@/components/ui/skeleton"
-
 const CARD_CLASS = "w-full"
 
 export default function SearchPage() {
@@ -71,16 +69,7 @@ function TrendingFallback({
   readonly isLoading: boolean
 }) {
   if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-6 w-48" />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-          {Array.from({ length: 12 }, (_, i) => (
-            <Skeleton key={i} className="aspect-[2/3] rounded-lg" />
-          ))}
-        </div>
-      </div>
-    )
+    return null
   }
 
   if (movies.length === 0) return null

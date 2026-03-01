@@ -5,8 +5,6 @@ import { type Movie } from "@/types/movie"
 import { type TVShow } from "@/types/tv"
 import { PosterCard } from "./poster-card"
 import { MediaRow } from "./media-row"
-import { MediaRowSkeleton } from "./media-skeleton"
-
 type HomeSectionData = {
   readonly trendingMovies: ReadonlyArray<Movie>
 }
@@ -58,9 +56,7 @@ export function HomeSections({ trendingMovies }: HomeSectionData) {
       </MediaRow>
 
       {/* Trending TV */}
-      {trendingTV.isLoading ? (
-        <MediaRowSkeleton />
-      ) : trendingTV.data ? (
+      {trendingTV.data ? (
         <MediaRow title="Trending Series">
           {trendingTV.data.results.map((show) => (
             <TVPosterCard key={show.id} show={show} className={CARD_CLASS} />
@@ -69,9 +65,7 @@ export function HomeSections({ trendingMovies }: HomeSectionData) {
       ) : null}
 
       {/* Top Rated */}
-      {topRated.isLoading ? (
-        <MediaRowSkeleton />
-      ) : topRated.data ? (
+      {topRated.data ? (
         <MediaRow title="Top Rated Films">
           {topRated.data.results.map((movie) => (
             <MoviePosterCard key={movie.id} movie={movie} className={CARD_CLASS} />
@@ -80,9 +74,7 @@ export function HomeSections({ trendingMovies }: HomeSectionData) {
       ) : null}
 
       {/* Upcoming */}
-      {upcoming.isLoading ? (
-        <MediaRowSkeleton />
-      ) : upcoming.data ? (
+      {upcoming.data ? (
         <MediaRow title="Coming Soon">
           {upcoming.data.results.map((movie) => (
             <MoviePosterCard key={movie.id} movie={movie} className={CARD_CLASS} />

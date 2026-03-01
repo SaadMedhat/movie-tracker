@@ -8,7 +8,6 @@ import { discoverTV, getTVGenres } from "@/lib/api/tv"
 import { type Movie, type Genre } from "@/types/movie"
 import { type TVShow } from "@/types/tv"
 import { PosterCard } from "@/components/media"
-import { Skeleton } from "@/components/ui/skeleton"
 import { staggerContainer, staggerItem, fadeInUp } from "@/lib/motion"
 import { STALE_TIMES } from "@/lib/constants"
 import { cn } from "@/lib/utils"
@@ -291,19 +290,7 @@ export default function DiscoverPage() {
       {/* Results */}
       <LayoutGroup>
         <AnimatePresence mode="wait">
-          {isLoading ? (
-            <motion.div
-              key="skeleton"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
-            >
-              {Array.from({ length: 18 }, (_, i) => (
-                <Skeleton key={i} className="aspect-[2/3] rounded-lg" />
-              ))}
-            </motion.div>
-          ) : results.length === 0 ? (
+          {isLoading ? null : results.length === 0 ? (
             <motion.div
               key="empty"
               initial={{ opacity: 0, y: 10 }}

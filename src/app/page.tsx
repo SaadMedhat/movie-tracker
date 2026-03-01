@@ -2,7 +2,7 @@ import { Suspense } from "react"
 import { type Metadata } from "next"
 import { tmdbServerFetch } from "@/lib/api/tmdb-server"
 import { type Movie, type PaginatedResponse } from "@/types/movie"
-import { HomeHero, HomeSections, HeroSkeleton, MediaRowSkeleton } from "@/components/media"
+import { HomeHero, HomeSections } from "@/components/media"
 
 export const dynamic = "force-dynamic"
 
@@ -65,19 +65,7 @@ function HomeError() {
 export default function HomePage() {
   return (
     <div className="-mt-16">
-      <Suspense
-        fallback={
-          <div>
-            <HeroSkeleton />
-            <div className="mx-auto max-w-7xl space-y-10 px-0 py-8 md:px-6 md:py-12">
-              <MediaRowSkeleton />
-              <MediaRowSkeleton />
-              <MediaRowSkeleton />
-              <MediaRowSkeleton />
-            </div>
-          </div>
-        }
-      >
+      <Suspense fallback={null}>
         <HeroSection />
       </Suspense>
     </div>

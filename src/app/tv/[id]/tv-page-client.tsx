@@ -3,7 +3,6 @@
 import { use } from "react"
 import { useTVDetail } from "@/lib/api/queries"
 import { MediaDetail } from "@/components/detail"
-import { DetailSkeleton } from "@/components/media"
 
 type TVPageClientProps = {
   readonly params: Promise<{ readonly id: string }>
@@ -15,7 +14,7 @@ export default function TVPageClient({ params }: TVPageClientProps) {
   const { data, isLoading, isError } = useTVDetail(tvId)
 
   if (isLoading) {
-    return <DetailSkeleton />
+    return null
   }
 
   if (isError || !data) {

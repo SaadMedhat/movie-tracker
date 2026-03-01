@@ -7,7 +7,6 @@ import { type MultiSearchResult } from "@/lib/api/search"
 import { getPosterUrl, formatVoteAverage } from "@/lib/utils/media"
 import { getYear } from "@/lib/utils/date"
 import { staggerContainer, staggerItem, posterHover } from "@/lib/motion"
-import { Skeleton } from "@/components/ui/skeleton"
 
 type SearchResultsProps = {
   readonly results: ReadonlyArray<MultiSearchResult>
@@ -21,7 +20,7 @@ export function SearchResults({
   query,
 }: SearchResultsProps) {
   if (isLoading) {
-    return <SearchGridSkeleton />
+    return null
   }
 
   if (query.length >= 2 && results.length === 0) {
@@ -135,16 +134,6 @@ function EmptyState({ query }: { readonly query: string }) {
         Try a different title or check the spelling
       </p>
     </motion.div>
-  )
-}
-
-function SearchGridSkeleton() {
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-      {Array.from({ length: 12 }, (_, i) => (
-        <Skeleton key={i} className="aspect-[2/3] rounded-lg" />
-      ))}
-    </div>
   )
 }
 

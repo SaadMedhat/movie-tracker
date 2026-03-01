@@ -3,7 +3,6 @@
 import { use } from "react"
 import { useMovieDetail } from "@/lib/api/queries"
 import { MediaDetail } from "@/components/detail"
-import { DetailSkeleton } from "@/components/media"
 
 type MoviePageClientProps = {
   readonly params: Promise<{ readonly id: string }>
@@ -15,7 +14,7 @@ export default function MoviePageClient({ params }: MoviePageClientProps) {
   const { data, isLoading, isError } = useMovieDetail(movieId)
 
   if (isLoading) {
-    return <DetailSkeleton />
+    return null
   }
 
   if (isError || !data) {
