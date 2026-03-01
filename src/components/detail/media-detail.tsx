@@ -76,14 +76,26 @@ export function MediaDetail(props: MediaDetailProps): ReactNode {
 
   const showBackdropVideo = trailerKey && videoPlaying && !videoEnded
 
+  // 5. useRef for fallback timer
+  const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   // 6. useCallback
   const handleIframeLoad = useCallback((): void => {
     const iframe = iframeRef.current
     if (!iframe?.contentWindow) return
+    // Subscribe to YouTube state events
     iframe.contentWindow.postMessage(
       JSON.stringify({ event: "listening" }),
       "*"
     )
+    // Fallback: if no postMessage state event arrives within 3s,
+    // assume muted autoplay succeeded (it does on all modern browsers)
+    fallbackTimerRef.current = setTimeout(() => {
+      setVideoPlaying((prev) => {
+        if (prev) return prev
+        return true
+      })
+    }, 3000)
   }, [])
 
   const handleRate = useCallback(
@@ -110,7 +122,14 @@ export function MediaDetail(props: MediaDetailProps): ReactNode {
       try {
         const parsed: YouTubeStateMessage = JSON.parse(e.data)
         if (parsed.event === "onStateChange") {
-          if (parsed.info === 1) setVideoPlaying(true)
+          if (parsed.info === 1) {
+            // Clear fallback timer since we got a real state event
+            if (fallbackTimerRef.current) {
+              clearTimeout(fallbackTimerRef.current)
+              fallbackTimerRef.current = null
+            }
+            setVideoPlaying(true)
+          }
           if (parsed.info === 0) setVideoEnded(true)
         }
       } catch {
@@ -118,7 +137,13 @@ export function MediaDetail(props: MediaDetailProps): ReactNode {
       }
     }
     window.addEventListener("message", handleMessage)
-    return () => window.removeEventListener("message", handleMessage)
+    return () => {
+      window.removeEventListener("message", handleMessage)
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current)
+        fallbackTimerRef.current = null
+      }
+    }
   }, [trailerKey])
 
   return (
@@ -158,7 +183,7 @@ export function MediaDetail(props: MediaDetailProps): ReactNode {
           >
             <iframe
               ref={iframeRef}
-              src={`https://www.youtube-nocookie.com/embed/${trailerKey}?autoplay=1&mute=1&controls=0&showinfo=0&rel=0&modestbranding=1&start=5&enablejsapi=1&origin=${typeof window !== "undefined" ? window.location.origin : ""}`}
+              src={`https://www.youtube.com/embed/${trailerKey}?autoplay=1&mute=1&controls=0&showinfo=0&rel=0&modestbranding=1&start=5&enablejsapi=1&origin=${typeof window !== "undefined" ? window.location.origin : ""}`}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
               className="pointer-events-none absolute left-1/2 top-1/2 h-[200%] w-[200%] -translate-x-1/2 -translate-y-1/2"
               tabIndex={-1}
