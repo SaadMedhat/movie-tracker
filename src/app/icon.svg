@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="108" fill="#111119"/>
+  <g transform="translate(256,256)">
+    <!-- Film reel outer ring -->
+    <circle cx="0" cy="0" r="180" stroke="#D4A252" stroke-width="28" fill="none"/>
+    <!-- Sprocket holes -->
+    <circle cx="0" cy="-180" r="18" fill="#D4A252"/>
+    <circle cx="127.3" cy="-127.3" r="18" fill="#D4A252"/>
+    <circle cx="180" cy="0" r="18" fill="#D4A252"/>
+    <circle cx="127.3" cy="127.3" r="18" fill="#D4A252"/>
+    <circle cx="0" cy="180" r="18" fill="#D4A252"/>
+    <circle cx="-127.3" cy="127.3" r="18" fill="#D4A252"/>
+    <circle cx="-180" cy="0" r="18" fill="#D4A252"/>
+    <circle cx="-127.3" cy="-127.3" r="18" fill="#D4A252"/>
+    <!-- Center hub -->
+    <circle cx="0" cy="0" r="48" fill="#D4A252"/>
+    <circle cx="0" cy="0" r="24" fill="#111119"/>
+    <!-- Play triangle -->
+    <polygon points="10,-30 10,30 42,0" fill="#111119"/>
+  </g>
+</svg>
