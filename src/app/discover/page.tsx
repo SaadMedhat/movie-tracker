@@ -234,25 +234,25 @@ export default function DiscoverPage() {
           </div>
         </div>
 
-        {/* Year / Sort / Rating */}
-        <div className="flex flex-wrap items-center gap-4">
-          {/* Year */}
-          <div className="flex flex-wrap items-center gap-2">
-            <FilterLabel>Year</FilterLabel>
-            <div className="scrollbar-hide flex gap-1.5 overflow-x-auto">
-              {YEAR_OPTIONS.map((y) => (
-                <Chip
-                  key={y}
-                  isSelected={year === y}
-                  onClick={() => changeYear(y)}
-                  size="sm"
-                >
-                  {y}
-                </Chip>
-              ))}
-            </div>
+        {/* Year */}
+        <div className="space-y-2">
+          <FilterLabel>Year</FilterLabel>
+          <div className="scrollbar-hide flex gap-1.5 overflow-x-auto pb-1">
+            {YEAR_OPTIONS.map((y) => (
+              <Chip
+                key={y}
+                isSelected={year === y}
+                onClick={() => changeYear(y)}
+                size="sm"
+              >
+                {y}
+              </Chip>
+            ))}
           </div>
+        </div>
 
+        {/* Sort / Rating */}
+        <div className="flex flex-wrap items-center gap-4">
           {/* Sort */}
           <div className="flex flex-wrap items-center gap-2">
             <FilterLabel>Sort</FilterLabel>
