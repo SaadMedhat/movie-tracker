@@ -5,7 +5,6 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
-import { LanguageSelector } from "@/components/ui/language-selector"
 import { useT } from "@/lib/i18n/translations"
 
 const NAV_ICONS = [
@@ -84,7 +83,6 @@ export function Navigation() {
                 </Link>
               )
             })}
-            <LanguageSelector className="ml-4" />
           </div>
         </nav>
       </motion.header>
