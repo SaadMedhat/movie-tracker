@@ -5,6 +5,7 @@ import { motion } from "framer-motion"
 import { type CastMember } from "@/types/movie"
 import { getProfileUrl } from "@/lib/utils/media"
 import { staggerContainer, staggerItem, fadeInUp } from "@/lib/motion"
+import { useT } from "@/lib/i18n/translations"
 
 type CastRowProps = {
   readonly cast: ReadonlyArray<CastMember>
@@ -14,6 +15,7 @@ type CastRowProps = {
 const MAX_CAST = 20
 
 export function CastRow({ cast, maxCount = MAX_CAST }: CastRowProps) {
+  const t = useT()
   const visibleCast = cast.slice(0, maxCount)
 
   if (visibleCast.length === 0) return null
@@ -27,7 +29,7 @@ export function CastRow({ cast, maxCount = MAX_CAST }: CastRowProps) {
       className="space-y-4"
     >
       <h2 className="font-display text-lg font-semibold tracking-tight text-foreground md:text-xl">
-        Cast
+        {t.detail.cast}
       </h2>
 
       <motion.div

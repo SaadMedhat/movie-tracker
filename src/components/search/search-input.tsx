@@ -3,6 +3,7 @@
 import { useRef, useEffect } from "react"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
+import { useT } from "@/lib/i18n/translations"
 
 type SearchInputProps = {
   readonly value: string
@@ -17,6 +18,7 @@ export function SearchInput({
   isLoading = false,
   className,
 }: SearchInputProps) {
+  const t = useT()
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -36,8 +38,8 @@ export function SearchInput({
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Search movies and TV shows..."
-        aria-label="Search movies and TV shows"
+        placeholder={t.search.placeholder}
+        aria-label={t.search.ariaLabel}
         className="h-14 w-full rounded-xl border border-border bg-surface pl-12 pr-12 text-base text-foreground placeholder:text-text-ghost transition-colors focus:border-cinema-amber/50 focus:outline-none focus:ring-2 focus:ring-cinema-glow md:h-16 md:text-lg"
       />
       {isLoading ? (
@@ -49,7 +51,7 @@ export function SearchInput({
           type="button"
           onClick={() => onChange("")}
           className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full p-1 text-text-tertiary transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label="Clear search"
+          aria-label={t.search.clearSearch}
         >
           <ClearIcon className="h-4 w-4" />
         </button>

@@ -1,6 +1,13 @@
 import "server-only"
 
+import { cookies } from "next/headers"
+
 const TMDB_BASE_URL = "https://api.themoviedb.org/3"
+
+const getServerLanguage = async (): Promise<string> => {
+  const cookieStore = await cookies()
+  return cookieStore.get("cinetrack-lang")?.value ?? "it-IT"
+}
 
 export const tmdbServerFetch = async <T>(
   path: string,
@@ -13,8 +20,10 @@ export const tmdbServerFetch = async <T>(
     throw new Error("TMDB_API_KEY is not configured")
   }
 
+  const language = await getServerLanguage()
+
   const searchParams = new URLSearchParams({
-    language: "en-US",
+    language,
     api_key: apiKey,
     ...params,
   })

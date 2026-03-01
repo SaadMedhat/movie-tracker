@@ -9,9 +9,11 @@ import { SearchInput, SearchResults } from "@/components/search"
 import { PosterCard } from "@/components/media"
 import { type Movie } from "@/types/movie"
 import { staggerContainer, staggerItem, fadeInUp } from "@/lib/motion"
+import { useT } from "@/lib/i18n/translations"
 const CARD_CLASS = "w-full"
 
 export default function SearchPage() {
+  const t = useT()
   const [query, setQuery] = useState("")
   const debouncedQuery = useDebounce(query, 300)
 
@@ -34,7 +36,7 @@ export default function SearchPage() {
         className="mb-2"
       >
         <h1 className="font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-          Search
+          {t.search.title}
         </h1>
       </motion.div>
 
@@ -68,6 +70,7 @@ function TrendingFallback({
   readonly movies: ReadonlyArray<Movie>
   readonly isLoading: boolean
 }) {
+  const t = useT()
   if (isLoading) {
     return null
   }
@@ -82,7 +85,7 @@ function TrendingFallback({
       className="space-y-4"
     >
       <p className="text-sm font-medium text-text-tertiary">
-        Popular right now
+        {t.search.popularNow}
       </p>
       <motion.div
         variants={staggerContainer}

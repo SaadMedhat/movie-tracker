@@ -1,5 +1,5 @@
 import { tmdbFetch } from "./tmdb-client"
-import { type PaginatedResponse, type Genre } from "@/types/movie"
+import { type PaginatedResponse, type Genre, type VideoResults } from "@/types/movie"
 import { type TVShow, type TVShowDetail } from "@/types/tv"
 
 export const getTrendingTV = (
@@ -33,6 +33,9 @@ export const discoverTV = (
     sort_by: "popularity.desc",
     ...params,
   })
+
+export const getTVVideos = (id: number): Promise<VideoResults> =>
+  tmdbFetch<VideoResults>(`tv/${id}/videos`)
 
 export const getTVGenres = (): Promise<{
   readonly genres: ReadonlyArray<Genre>

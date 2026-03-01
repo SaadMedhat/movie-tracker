@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog"
 import { type VideoResults } from "@/types/movie"
 import { getTrailerKey } from "@/lib/utils/media"
+import { useT } from "@/lib/i18n/translations"
 
 type TrailerDialogProps = {
   readonly videos: VideoResults
@@ -15,6 +16,7 @@ type TrailerDialogProps = {
 }
 
 export function TrailerDialog({ videos, title }: TrailerDialogProps) {
+  const t = useT()
   const [isOpen, setIsOpen] = useState(false)
   const trailerKey = getTrailerKey(videos.results)
 
@@ -32,16 +34,16 @@ export function TrailerDialog({ videos, title }: TrailerDialogProps) {
         className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-surface-elevated px-5 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <PlayIcon className="h-4 w-4" />
-        Watch Trailer
+        {t.detail.watchTrailer}
       </button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-4xl border-border bg-background p-0 overflow-hidden">
-          <DialogTitle className="sr-only">{title} — Trailer</DialogTitle>
+          <DialogTitle className="sr-only">{title} — {t.detail.trailer}</DialogTitle>
           <div className="relative aspect-video w-full">
             <iframe
               src={`https://www.youtube-nocookie.com/embed/${trailerKey}?autoplay=1&rel=0`}
-              title={`${title} — Trailer`}
+              title={`${title} — ${t.detail.trailer}`}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
               className="absolute inset-0 h-full w-full"

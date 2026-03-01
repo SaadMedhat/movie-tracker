@@ -4,6 +4,7 @@ import {
   type MovieDetail,
   type PaginatedResponse,
   type Genre,
+  type VideoResults,
 } from "@/types/movie"
 
 export const getTrendingMovies = (
@@ -51,6 +52,9 @@ export const discoverMovies = (
     sort_by: "popularity.desc",
     ...params,
   })
+
+export const getMovieVideos = (id: number): Promise<VideoResults> =>
+  tmdbFetch<VideoResults>(`movie/${id}/videos`)
 
 export const getMovieGenres = (): Promise<{
   readonly genres: ReadonlyArray<Genre>

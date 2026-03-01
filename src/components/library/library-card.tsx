@@ -11,21 +11,23 @@ import { getPosterUrl } from "@/lib/utils/media"
 import { formatShortDate } from "@/lib/utils/date"
 import { staggerItem } from "@/lib/motion"
 import { cn } from "@/lib/utils"
+import { useT } from "@/lib/i18n/translations"
 
 type LibraryCardProps = {
   readonly entry: LibraryEntry
 }
 
-const STATUS_OPTIONS: ReadonlyArray<{
-  readonly value: MediaStatus
-  readonly label: string
-}> = [
-  { value: "watchlist", label: "Watchlist" },
-  { value: "watching", label: "Watching" },
-  { value: "watched", label: "Watched" },
-] as const
-
 export function LibraryCard({ entry }: LibraryCardProps) {
+  const t = useT()
+
+  const STATUS_OPTIONS: ReadonlyArray<{
+    readonly value: MediaStatus
+    readonly label: string
+  }> = [
+    { value: "watchlist", label: t.library.watchlist },
+    { value: "watching", label: t.library.watching },
+    { value: "watched", label: t.library.watched },
+  ]
   const updateStatus = useLibraryStore((s) => s.updateStatus)
   const setRating = useLibraryStore((s) => s.setRating)
   const removeFromLibrary = useLibraryStore((s) => s.removeFromLibrary)
@@ -79,7 +81,7 @@ export function LibraryCard({ entry }: LibraryCardProps) {
           {/* Media type badge */}
           <div className="absolute left-2 top-2">
             <span className="rounded bg-background/80 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-text-secondary backdrop-blur-sm">
-              {entry.mediaType === "movie" ? "Film" : "Series"}
+              {entry.mediaType === "movie" ? t.library.film : t.library.series}
             </span>
           </div>
         </div>
@@ -98,7 +100,7 @@ export function LibraryCard({ entry }: LibraryCardProps) {
 
         {/* Added date */}
         <p className="text-[11px] text-text-ghost">
-          Added {formatShortDate(entry.addedAt)}
+          {t.library.added} {formatShortDate(entry.addedAt)}
         </p>
 
         {/* Status + Remove */}

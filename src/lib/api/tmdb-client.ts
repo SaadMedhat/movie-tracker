@@ -1,3 +1,5 @@
+import { useLanguageStore } from "@/lib/stores/language-store"
+
 type TMDBError = {
   readonly error: string
   readonly status: number
@@ -14,7 +16,7 @@ export const tmdbFetch = async <T>(
   params: Record<string, string> = {}
 ): Promise<T> => {
   const searchParams = new URLSearchParams({
-    language: "en-US",
+    language: useLanguageStore.getState().language,
     ...params,
   })
 

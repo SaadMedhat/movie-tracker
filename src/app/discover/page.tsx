@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useMemo, useCallback } from "react"
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion"
 import { useQuery } from "@tanstack/react-query"
+import { useQueryState, parseAsString, parseAsInteger } from "nuqs"
 import { discoverMovies, getMovieGenres } from "@/lib/api/movies"
 import { discoverTV, getTVGenres } from "@/lib/api/tv"
 import { type Movie, type Genre } from "@/types/movie"
@@ -11,47 +12,22 @@ import { PosterCard } from "@/components/media"
 import { staggerContainer, staggerItem, fadeInUp } from "@/lib/motion"
 import { STALE_TIMES } from "@/lib/constants"
 import { cn } from "@/lib/utils"
+import { useT } from "@/lib/i18n/translations"
+import { useLanguageStore } from "@/lib/stores/language-store"
 
 /* ── Filter types ── */
-
-type MediaToggle = "movie" | "tv"
 
 type SortOption = {
   readonly label: string
   readonly value: string
 }
 
-const SORT_OPTIONS: ReadonlyArray<SortOption> = [
-  { label: "Popularity", value: "popularity.desc" },
-  { label: "Rating", value: "vote_average.desc" },
-  { label: "Newest", value: "primary_release_date.desc" },
-  { label: "Oldest", value: "primary_release_date.asc" },
+const YEAR_VALUES = [
+  "Any", "2026", "2025", "2024", "2023", "2022", "2021", "2020",
+  "2010s", "2000s", "90s", "Classics",
 ] as const
 
-const SORT_OPTIONS_TV: ReadonlyArray<SortOption> = [
-  { label: "Popularity", value: "popularity.desc" },
-  { label: "Rating", value: "vote_average.desc" },
-  { label: "Newest", value: "first_air_date.desc" },
-  { label: "Oldest", value: "first_air_date.asc" },
-] as const
-
-const YEAR_OPTIONS: ReadonlyArray<string> = [
-  "Any",
-  "2026",
-  "2025",
-  "2024",
-  "2023",
-  "2022",
-  "2021",
-  "2020",
-  "2010s",
-  "2000s",
-  "90s",
-  "Classics",
-] as const
-
-const RATING_OPTIONS: ReadonlyArray<{ readonly label: string; readonly value: string }> = [
-  { label: "Any", value: "" },
+const RATING_VALUES: ReadonlyArray<{ readonly label: string; readonly value: string }> = [
   { label: "7+", value: "7" },
   { label: "8+", value: "8" },
   { label: "9+", value: "9" },
@@ -62,50 +38,71 @@ const CARD_CLASS = "w-full"
 /* ── Page ── */
 
 export default function DiscoverPage() {
-  const [mediaType, setMediaType] = useState<MediaToggle>("movie")
-  const [genreId, setGenreId] = useState<string>("")
-  const [year, setYear] = useState<string>("Any")
-  const [sortBy, setSortBy] = useState<string>("popularity.desc")
-  const [minRating, setMinRating] = useState<string>("")
-  const [page, setPage] = useState(1)
+  const t = useT()
+  const language = useLanguageStore((s) => s.language)
+  const [mediaType, setMediaType] = useQueryState("type", parseAsString.withDefault("movie"))
+  const [genreId, setGenreId] = useQueryState("genre", parseAsString.withDefault(""))
+  const [year, setYear] = useQueryState("year", parseAsString.withDefault("Any"))
+  const [sortBy, setSortBy] = useQueryState("sort", parseAsString.withDefault("popularity.desc"))
+  const [minRating, setMinRating] = useQueryState("rating", parseAsString.withDefault(""))
+  const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1))
+
+  const sortOptions: ReadonlyArray<SortOption> = mediaType === "movie"
+    ? [
+        { label: t.discover.popularity, value: "popularity.desc" },
+        { label: t.discover.ratingSort, value: "vote_average.desc" },
+        { label: t.discover.newest, value: "primary_release_date.desc" },
+        { label: t.discover.oldest, value: "primary_release_date.asc" },
+      ]
+    : [
+        { label: t.discover.popularity, value: "popularity.desc" },
+        { label: t.discover.ratingSort, value: "vote_average.desc" },
+        { label: t.discover.newest, value: "first_air_date.desc" },
+        { label: t.discover.oldest, value: "first_air_date.asc" },
+      ]
+
+  const yearLabels: Record<string, string> = {
+    Any: t.discover.any,
+    Classics: t.discover.classics,
+  }
 
   /* Reset page when filters change */
-  const changeMediaType = useCallback((value: MediaToggle): void => {
-    setMediaType(value)
-    setGenreId("")
-    setSortBy("popularity.desc")
-    setPage(1)
-  }, [])
+  const changeMediaType = useCallback((value: string): void => {
+    void setMediaType(value)
+    void setGenreId("")
+    void setSortBy("popularity.desc")
+    void setPage(1)
+  }, [setMediaType, setGenreId, setSortBy, setPage])
 
   const changeGenre = useCallback((value: string): void => {
-    setGenreId(value)
-    setPage(1)
-  }, [])
+    void setGenreId(value)
+    void setPage(1)
+  }, [setGenreId, setPage])
 
   const changeYear = useCallback((value: string): void => {
-    setYear(value)
-    setPage(1)
-  }, [])
+    void setYear(value)
+    void setPage(1)
+  }, [setYear, setPage])
 
   const changeSort = useCallback((value: string): void => {
-    setSortBy(value)
-    setPage(1)
-  }, [])
+    void setSortBy(value)
+    void setPage(1)
+  }, [setSortBy, setPage])
 
   const changeRating = useCallback((value: string): void => {
-    setMinRating(value)
-    setPage(1)
-  }, [])
+    void setMinRating(value)
+    void setPage(1)
+  }, [setMinRating, setPage])
 
   /* Genres */
   const movieGenres = useQuery({
-    queryKey: ["genres", "movie"],
+    queryKey: ["genres", "movie", language],
     queryFn: getMovieGenres,
     staleTime: STALE_TIMES.GENRES,
   })
 
   const tvGenres = useQuery({
-    queryKey: ["genres", "tv"],
+    queryKey: ["genres", "tv", language],
     queryFn: getTVGenres,
     staleTime: STALE_TIMES.GENRES,
   })
@@ -114,9 +111,6 @@ export default function DiscoverPage() {
     mediaType === "movie"
       ? movieGenres.data?.genres ?? []
       : tvGenres.data?.genres ?? []
-
-  const sortOptions =
-    mediaType === "movie" ? SORT_OPTIONS : SORT_OPTIONS_TV
 
   /* Build params */
   const discoverParams = useMemo((): Record<string, string> => {
@@ -144,14 +138,14 @@ export default function DiscoverPage() {
 
   /* Fetch */
   const movieResults = useQuery({
-    queryKey: ["movies", "discover", discoverParams],
+    queryKey: ["movies", "discover", discoverParams, language],
     queryFn: () => discoverMovies(discoverParams),
     staleTime: STALE_TIMES.TRENDING,
     enabled: mediaType === "movie",
   })
 
   const tvResults = useQuery({
-    queryKey: ["tv", "discover", discoverParams],
+    queryKey: ["tv", "discover", discoverParams, language],
     queryFn: () => discoverTV(discoverParams),
     staleTime: STALE_TIMES.TRENDING,
     enabled: mediaType === "tv",
@@ -179,7 +173,7 @@ export default function DiscoverPage() {
         transition={{ duration: 0.4 }}
         className="mb-6 font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl"
       >
-        Discover
+        {t.discover.title}
       </motion.h1>
 
       {/* Filters */}
@@ -191,14 +185,14 @@ export default function DiscoverPage() {
       >
         {/* Media toggle */}
         <div className="flex flex-wrap items-center gap-2">
-          <FilterLabel>Type</FilterLabel>
+          <FilterLabel>{t.discover.type}</FilterLabel>
           <Chip
             isSelected={mediaType === "movie"}
             onClick={() => {
               changeMediaType("movie")
             }}
           >
-            Films
+            {t.discover.films}
           </Chip>
           <Chip
             isSelected={mediaType === "tv"}
@@ -206,19 +200,19 @@ export default function DiscoverPage() {
               changeMediaType("tv")
             }}
           >
-            TV Series
+            {t.discover.tvSeries}
           </Chip>
         </div>
 
         {/* Genre pills */}
         <div className="space-y-2">
-          <FilterLabel>Genre</FilterLabel>
+          <FilterLabel>{t.discover.genre}</FilterLabel>
           <div className="scrollbar-hide flex gap-1.5 overflow-x-auto pb-1 md:flex-wrap">
             <Chip
               isSelected={genreId === ""}
               onClick={() => changeGenre("")}
             >
-              All
+              {t.discover.all}
             </Chip>
             {genres.map((g) => (
               <Chip
@@ -236,16 +230,16 @@ export default function DiscoverPage() {
 
         {/* Year */}
         <div className="space-y-2">
-          <FilterLabel>Year</FilterLabel>
+          <FilterLabel>{t.discover.year}</FilterLabel>
           <div className="scrollbar-hide flex gap-1.5 overflow-x-auto pb-1">
-            {YEAR_OPTIONS.map((y) => (
+            {YEAR_VALUES.map((y) => (
               <Chip
                 key={y}
                 isSelected={year === y}
                 onClick={() => changeYear(y)}
                 size="sm"
               >
-                {y}
+                {yearLabels[y] ?? y}
               </Chip>
             ))}
           </div>
@@ -255,7 +249,7 @@ export default function DiscoverPage() {
         <div className="flex flex-wrap items-center gap-4">
           {/* Sort */}
           <div className="flex flex-wrap items-center gap-2">
-            <FilterLabel>Sort</FilterLabel>
+            <FilterLabel>{t.discover.sort}</FilterLabel>
             {sortOptions.map((opt) => (
               <Chip
                 key={opt.value}
@@ -270,8 +264,15 @@ export default function DiscoverPage() {
 
           {/* Min rating */}
           <div className="flex flex-wrap items-center gap-2">
-            <FilterLabel>Rating</FilterLabel>
-            {RATING_OPTIONS.map((opt) => (
+            <FilterLabel>{t.discover.rating}</FilterLabel>
+            <Chip
+              isSelected={minRating === ""}
+              onClick={() => changeRating("")}
+              size="sm"
+            >
+              {t.discover.any}
+            </Chip>
+            {RATING_VALUES.map((opt) => (
               <Chip
                 key={opt.label}
                 isSelected={minRating === opt.value}
@@ -302,10 +303,10 @@ export default function DiscoverPage() {
                 <FilmIcon className="h-8 w-8 text-text-ghost" />
               </div>
               <p className="text-base font-medium text-foreground">
-                No results found
+                {t.discover.noResults}
               </p>
               <p className="mt-1 text-sm text-text-tertiary">
-                Try adjusting your filters
+                {t.discover.adjustFilters}
               </p>
             </motion.div>
           ) : (
@@ -336,11 +337,11 @@ export default function DiscoverPage() {
         >
           <button
             type="button"
-            onClick={() => setPage((p) => p + 1)}
+            onClick={() => void setPage(page + 1)}
             disabled={isLoading}
             className="inline-flex h-11 items-center rounded-lg border border-border bg-surface-elevated px-8 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
           >
-            {isLoading ? "Loading..." : "Load More"}
+            {isLoading ? t.discover.loading : t.discover.loadMore}
           </button>
         </motion.div>
       ) : null}
@@ -352,7 +353,7 @@ export default function DiscoverPage() {
 
 function getYearParams(
   year: string,
-  mediaType: MediaToggle
+  mediaType: string
 ): Record<string, string> {
   const dateGte = mediaType === "movie" ? "primary_release_date.gte" : "first_air_date.gte"
   const dateLte = mediaType === "movie" ? "primary_release_date.lte" : "first_air_date.lte"
@@ -408,7 +409,7 @@ function ResultCard({
   mediaType,
 }: {
   readonly item: Movie | TVShow
-  readonly mediaType: MediaToggle
+  readonly mediaType: string
 }) {
   if (mediaType === "movie") {
     const movie = item as Movie

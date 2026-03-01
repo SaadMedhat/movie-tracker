@@ -1,8 +1,8 @@
 "use client"
 
-import { useRef, useCallback } from "react"
+import { useRef, useState, useCallback, useEffect } from "react"
 import Image from "next/image"
-import { motion, useScroll, useTransform } from "framer-motion"
+import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
 import { type MovieDetail } from "@/types/movie"
 import { type TVShowDetail } from "@/types/tv"
 import { type MediaType } from "@/types/library"
@@ -11,6 +11,7 @@ import {
   getPosterUrl,
   formatRuntime,
   formatVoteAverage,
+  getTrailerKey,
 } from "@/lib/utils/media"
 import { getYear, formatReleaseDate } from "@/lib/utils/date"
 import { fadeInUp } from "@/lib/motion"
@@ -21,6 +22,8 @@ import { useHydration } from "@/hooks/use-hydration"
 import { CastRow } from "./cast-row"
 import { TrailerDialog } from "./trailer-dialog"
 import { SimilarMedia } from "./similar-media"
+import { MuteToggle } from "@/components/ui/mute-toggle"
+import { useT } from "@/lib/i18n/translations"
 
 type MediaDetailProps =
   | {
@@ -34,6 +37,7 @@ type MediaDetailProps =
 
 export function MediaDetail(props: MediaDetailProps) {
   const { mediaType, data } = props
+  const t = useT()
   const containerRef = useRef<HTMLDivElement>(null)
   const isHydrated = useHydration()
 
@@ -52,6 +56,30 @@ export function MediaDetail(props: MediaDetailProps) {
   const formattedDate = formatReleaseDate(date)
   const backdropUrl = getBackdropUrl(data.backdrop_path, "original")
   const posterUrl = getPosterUrl(data.poster_path, "xl")
+  const trailerKey = getTrailerKey(data.videos.results)
+  const [backdropVideoReady, setBackdropVideoReady] = useState(false)
+  const [videoEnded, setVideoEnded] = useState(false)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+
+  // Listen for YouTube player state changes (video ended = state 0)
+  useEffect(() => {
+    if (!trailerKey) return
+    const handleMessage = (e: MessageEvent) => {
+      if (typeof e.data !== "string") return
+      try {
+        const parsed = JSON.parse(e.data)
+        if (parsed.event === "onStateChange" && parsed.info === 0) {
+          setVideoEnded(true)
+        }
+      } catch {
+        // ignore non-JSON messages
+      }
+    }
+    window.addEventListener("message", handleMessage)
+    return () => window.removeEventListener("message", handleMessage)
+  }, [trailerKey])
+
+  const showBackdropVideo = trailerKey && backdropVideoReady && !videoEnded
 
   const getRating = useLibraryStore((s) => s.getRating)
   const setRating = useLibraryStore((s) => s.setRating)
@@ -83,6 +111,7 @@ export function MediaDetail(props: MediaDetailProps) {
         ref={containerRef}
         className="relative h-[50vh] w-full overflow-hidden md:h-[60vh]"
       >
+        {/* Static backdrop image (always present as fallback) */}
         {backdropUrl ? (
           <motion.div
             style={{ y: imageY, opacity: imageOpacity }}
@@ -101,6 +130,36 @@ export function MediaDetail(props: MediaDetailProps) {
         ) : (
           <div className="absolute inset-0 bg-surface" />
         )}
+
+        {/* Trailer video backdrop */}
+        {trailerKey && !videoEnded ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: showBackdropVideo ? 1 : 0 }}
+            transition={{ duration: 1.5 }}
+            className="absolute inset-0 -top-[10%] h-[120%]"
+          >
+            <iframe
+              ref={iframeRef}
+              src={`https://www.youtube-nocookie.com/embed/${trailerKey}?autoplay=1&mute=1&controls=0&showinfo=0&rel=0&modestbranding=1&start=5&enablejsapi=1&origin=${typeof window !== "undefined" ? window.location.origin : ""}`}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
+              className="pointer-events-none absolute left-1/2 top-1/2 h-[200%] w-[200%] -translate-x-1/2 -translate-y-1/2"
+              tabIndex={-1}
+              aria-hidden
+              onLoad={() => setBackdropVideoReady(true)}
+            />
+          </motion.div>
+        ) : null}
+
+        {/* Mute/Unmute toggle */}
+        {showBackdropVideo ? (
+          <MuteToggle
+            iframeRef={iframeRef}
+            size="md"
+            defaultMuted={false}
+            className="absolute right-4 top-20 z-20"
+          />
+        ) : null}
 
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-background/10" />
         <div className="absolute inset-0 bg-gradient-to-r from-background/70 via-transparent to-transparent" />
@@ -178,14 +237,14 @@ export function MediaDetail(props: MediaDetailProps) {
                 <>
                   <Dot />
                   <span>
-                    {(props.data as TVShowDetail).number_of_seasons} Season
+                    {(props.data as TVShowDetail).number_of_seasons}{" "}
                     {(props.data as TVShowDetail).number_of_seasons !== 1
-                      ? "s"
-                      : ""}
+                      ? t.detail.seasons
+                      : t.detail.season}
                   </span>
                   <Dot />
                   <span>
-                    {(props.data as TVShowDetail).number_of_episodes} Episodes
+                    {(props.data as TVShowDetail).number_of_episodes} {t.detail.episodes}
                   </span>
                 </>
               ) : null}
@@ -229,7 +288,7 @@ export function MediaDetail(props: MediaDetailProps) {
               >
                 {(props.data as TVShowDetail).first_air_date ? (
                   <span>
-                    First aired:{" "}
+                    {t.detail.firstAired}{" "}
                     {formatReleaseDate(
                       (props.data as TVShowDetail).first_air_date
                     )}
@@ -239,7 +298,7 @@ export function MediaDetail(props: MediaDetailProps) {
                   <>
                     <Dot />
                     <span>
-                      Last aired:{" "}
+                      {t.detail.lastAired}{" "}
                       {formatReleaseDate(
                         (props.data as TVShowDetail).last_air_date
                       )}
@@ -269,7 +328,7 @@ export function MediaDetail(props: MediaDetailProps) {
               />
               <TrailerDialog videos={data.videos} title={title} />
               <div className="flex items-center gap-2">
-                <span className="text-xs text-text-tertiary">Your rating</span>
+                <span className="text-xs text-text-tertiary">{t.detail.yourRating}</span>
                 <RatingStars
                   rating={currentRating}
                   onRate={handleRate}
@@ -334,6 +393,7 @@ function CrewHighlight({
   readonly data: MovieDetail | TVShowDetail
   readonly mediaType: MediaType
 }) {
+  const t = useT()
   if (mediaType === "movie") {
     const directors = (data as MovieDetail).credits.crew.filter(
       (c) => c.job === "Director"
@@ -341,7 +401,7 @@ function CrewHighlight({
     if (directors.length === 0) return null
     return (
       <p className="text-sm text-text-secondary">
-        <span className="text-text-tertiary">Directed by</span>{" "}
+        <span className="text-text-tertiary">{t.detail.directedBy}</span>{" "}
         <span className="font-medium text-foreground">
           {directors.map((d) => d.name).join(", ")}
         </span>
@@ -355,7 +415,7 @@ function CrewHighlight({
   if (creators.length === 0) return null
   return (
     <p className="text-sm text-text-secondary">
-      <span className="text-text-tertiary">Created by</span>{" "}
+      <span className="text-text-tertiary">{t.detail.createdBy}</span>{" "}
       <span className="font-medium text-foreground">
         {creators
           .slice(0, 3)
@@ -378,3 +438,4 @@ function StarIcon({ className }: { readonly className?: string }) {
     </svg>
   )
 }
+

@@ -1,12 +1,15 @@
 "use client"
 
+import { useState, useRef, useCallback } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { posterHover, staggerItem } from "@/lib/motion"
-import { getPosterUrl, formatVoteAverage, getMediaTitle, getMediaDate } from "@/lib/utils/media"
+import { getPosterUrl, formatVoteAverage, getMediaTitle, getMediaDate, getTrailerKey } from "@/lib/utils/media"
 import { getYear } from "@/lib/utils/date"
 import { cn } from "@/lib/utils"
+import { useMediaVideos } from "@/lib/api/queries"
+import { MuteToggle } from "@/components/ui/mute-toggle"
 
 type PosterCardProps = {
   readonly id: number
@@ -40,12 +43,63 @@ export function PosterCard({
   const posterUrl = getPosterUrl(posterPath, "md")
   const href = `/${mediaType}/${id}`
 
+  const [isHovering, setIsHovering] = useState(false)
+  const [iframeReady, setIframeReady] = useState(false)
+  const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+
+  const { data: videoData } = useMediaVideos(mediaType, id, isHovering)
+  const trailerKey = videoData ? getTrailerKey(videoData.results) : null
+
+  const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleMouseEnter = useCallback(() => {
+    if (leaveTimerRef.current) {
+      clearTimeout(leaveTimerRef.current)
+      leaveTimerRef.current = null
+    }
+    setIsHovering(true)
+  }, [])
+
+  const handleMouseLeave = useCallback(() => {
+    leaveTimerRef.current = setTimeout(() => {
+      setIsHovering(false)
+      setIframeReady(false)
+    }, 100)
+  }, [])
+
+  // Long press for mobile (500ms)
+  const handleTouchStart = useCallback(() => {
+    longPressRef.current = setTimeout(() => {
+      setIsHovering(true)
+    }, 500)
+  }, [])
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressRef.current) {
+      clearTimeout(longPressRef.current)
+      longPressRef.current = null
+    }
+    if (isHovering) {
+      setIsHovering(false)
+      setIframeReady(false)
+    }
+  }, [isHovering])
+
+  // Progress bar: visible while the trailer is actually playing
+  const showProgress = isHovering && iframeReady && trailerKey
+
   return (
     <motion.div
       variants={staggerItem}
       initial="hidden"
       animate="visible"
       className={cn("group relative", className)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
     >
       <Link href={href} className="block">
         <motion.div
@@ -67,10 +121,62 @@ export function PosterCard({
             </div>
           )}
 
-          {/* Hover overlay */}
+          {/* Trailer preview overlay */}
+          <AnimatePresence>
+            {isHovering && trailerKey ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: iframeReady ? 1 : 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="absolute inset-[-2px] z-10 overflow-hidden rounded-lg bg-black"
+              >
+                <iframe
+                  ref={iframeRef}
+                  src={`https://www.youtube-nocookie.com/embed/${trailerKey}?autoplay=1&mute=1&controls=0&showinfo=0&rel=0&modestbranding=1&start=5&loop=1&playlist=${trailerKey}&enablejsapi=1`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
+                  className="pointer-events-none absolute left-1/2 top-1/2 h-[400%] w-[400%] -translate-x-1/2 -translate-y-1/2"
+                  tabIndex={-1}
+                  aria-hidden
+                  onLoad={() => setIframeReady(true)}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30" />
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+
+          {/* Mute toggle on preview */}
+          {showProgress ? (
+            <MuteToggle
+              iframeRef={iframeRef}
+              size="sm"
+              className="absolute right-1.5 top-1.5 z-30"
+            />
+          ) : null}
+
+          {/* YouTube-style progress bar while trailer plays */}
+          <AnimatePresence>
+            {showProgress ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute bottom-0 left-0 right-0 z-30 h-[3px] overflow-hidden rounded-b-lg bg-white/20"
+              >
+                <motion.div
+                  className="h-full origin-left bg-red-500"
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: 1 }}
+                  transition={{ duration: 30, ease: "linear" }}
+                />
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+
+          {/* Hover info overlay */}
           <motion.div
             variants={posterHover}
-            className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/40 to-transparent p-3"
+            className="absolute inset-0 z-20 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/40 to-transparent p-3"
           >
             <p className="font-display text-sm font-semibold leading-tight text-white line-clamp-2">
               {displayTitle}

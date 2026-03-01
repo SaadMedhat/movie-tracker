@@ -5,17 +5,20 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
+import { LanguageSelector } from "@/components/ui/language-selector"
+import { useT } from "@/lib/i18n/translations"
 
-const NAV_ITEMS = [
-  { href: "/", label: "Home", icon: HomeIcon },
-  { href: "/discover", label: "Discover", icon: CompassIcon },
-  { href: "/library", label: "Library", icon: BookmarkIcon },
-  { href: "/search", label: "Search", icon: SearchIcon },
+const NAV_ICONS = [
+  { href: "/", key: "home", icon: HomeIcon },
+  { href: "/discover", key: "discover", icon: CompassIcon },
+  { href: "/library", key: "library", icon: BookmarkIcon },
+  { href: "/search", key: "search", icon: SearchIcon },
 ] as const
 
 export function Navigation() {
   const pathname = usePathname()
   const [isScrolled, setIsScrolled] = useState(false)
+  const t = useT()
 
   useEffect(() => {
     const handleScroll = (): void => {
@@ -48,7 +51,7 @@ export function Navigation() {
           </Link>
 
           <div className="flex items-center gap-1">
-            {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+            {NAV_ICONS.map(({ href, key, icon: Icon }) => {
               const isActive =
                 href === "/"
                   ? pathname === "/"
@@ -65,7 +68,7 @@ export function Navigation() {
                   )}
                 >
                   <Icon className="h-4 w-4" />
-                  <span>{label}</span>
+                  <span>{t.nav[key]}</span>
                   {isActive ? (
                     <motion.div
                       layoutId="nav-indicator"
@@ -81,6 +84,7 @@ export function Navigation() {
                 </Link>
               )
             })}
+            <LanguageSelector className="ml-4" />
           </div>
         </nav>
       </motion.header>
@@ -88,7 +92,7 @@ export function Navigation() {
       {/* Mobile nav — fixed bottom */}
       <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 z-50 block border-t border-border bg-background/90 backdrop-blur-xl md:hidden">
         <div className="flex h-16 items-center justify-around px-2">
-          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+          {NAV_ICONS.map(({ href, key, icon: Icon }) => {
             const isActive =
               href === "/"
                 ? pathname === "/"
@@ -105,10 +109,11 @@ export function Navigation() {
                 )}
               >
                 <Icon className="h-5 w-5" />
-                <span>{label}</span>
+                <span>{t.nav[key]}</span>
               </Link>
             )
           })}
+          <LanguageSelector />
         </div>
       </nav>
     </>

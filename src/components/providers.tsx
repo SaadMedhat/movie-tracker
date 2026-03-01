@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { NuqsAdapter } from "nuqs/adapters/next/app"
 
 type ProvidersProps = {
   readonly children: ReactNode
@@ -22,7 +23,7 @@ export function Providers({ children }: ProvidersProps) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
+      <NuqsAdapter>{children}</NuqsAdapter>
     </QueryClientProvider>
   )
 }

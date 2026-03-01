@@ -1,12 +1,10 @@
 "use client"
 
-import Image from "next/image"
-import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { type MultiSearchResult } from "@/lib/api/search"
-import { getPosterUrl, formatVoteAverage } from "@/lib/utils/media"
-import { getYear } from "@/lib/utils/date"
-import { staggerContainer, staggerItem, posterHover } from "@/lib/motion"
+import { staggerContainer } from "@/lib/motion"
+import { PosterCard } from "@/components/media/poster-card"
+import { useT } from "@/lib/i18n/translations"
 
 type SearchResultsProps = {
   readonly results: ReadonlyArray<MultiSearchResult>
@@ -36,87 +34,29 @@ export function SearchResults({
         animate="visible"
         className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
       >
-        {results.map((result) => (
-          <SearchResultCard key={`${result.media_type}-${result.id}`} result={result} />
-        ))}
+        {results.map((result) => {
+          const isMovie = result.media_type === "movie"
+          const movieResult = result as MultiSearchResult & { readonly title: string; readonly release_date: string }
+          const tvResult = result as MultiSearchResult & { readonly name: string; readonly first_air_date: string }
+          return (
+            <PosterCard
+              key={`${result.media_type}-${result.id}`}
+              id={result.id}
+              {...(isMovie ? { title: movieResult.title, releaseDate: movieResult.release_date } : { name: tvResult.name, firstAirDate: tvResult.first_air_date })}
+              posterPath={result.poster_path}
+              voteAverage={result.vote_average}
+              mediaType={result.media_type as "movie" | "tv"}
+              className="w-full"
+            />
+          )
+        })}
       </motion.div>
     </AnimatePresence>
   )
 }
 
-function SearchResultCard({
-  result,
-}: {
-  readonly result: MultiSearchResult
-}) {
-  const isMovie = result.media_type === "movie"
-  const title = isMovie
-    ? (result as MultiSearchResult & { readonly title: string }).title
-    : (result as MultiSearchResult & { readonly name: string }).name
-  const date = isMovie
-    ? (result as MultiSearchResult & { readonly release_date: string }).release_date
-    : (result as MultiSearchResult & { readonly first_air_date: string }).first_air_date
-  const year = getYear(date ?? "")
-  const posterUrl = getPosterUrl(result.poster_path, "md")
-  const href = `/${result.media_type}/${result.id}`
-
-  return (
-    <motion.div variants={staggerItem} className="group relative">
-      <Link href={href} className="block">
-        <motion.div
-          initial="rest"
-          whileHover="hover"
-          className="relative aspect-[2/3] overflow-hidden rounded-lg bg-surface"
-        >
-          {posterUrl ? (
-            <Image
-              src={posterUrl}
-              alt={title ?? ""}
-              fill
-              sizes="(max-width: 640px) 33vw, (max-width: 1024px) 20vw, 16vw"
-              className="object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-surface-elevated">
-              <FilmIcon className="h-8 w-8 text-text-ghost" />
-            </div>
-          )}
-
-          {/* Media type badge */}
-          <div className="absolute left-2 top-2">
-            <span className="rounded bg-background/80 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-text-secondary backdrop-blur-sm">
-              {isMovie ? "Film" : "Series"}
-            </span>
-          </div>
-
-          {/* Hover overlay */}
-          <motion.div
-            variants={posterHover}
-            className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/40 to-transparent p-3"
-          >
-            <p className="font-display text-sm font-semibold leading-tight text-white line-clamp-2">
-              {title}
-            </p>
-            <div className="mt-1 flex items-center gap-2 text-xs text-text-secondary">
-              {year ? <span>{year}</span> : null}
-              {result.vote_average > 0 ? (
-                <>
-                  <span className="text-text-ghost">·</span>
-                  <span className="flex items-center gap-0.5 text-cinema-amber">
-                    <StarIcon className="h-3 w-3" />
-                    {formatVoteAverage(result.vote_average)}
-                  </span>
-                </>
-              ) : null}
-            </div>
-          </motion.div>
-        </motion.div>
-      </Link>
-    </motion.div>
-  )
-}
-
 function EmptyState({ query }: { readonly query: string }) {
+  const t = useT()
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -128,51 +68,16 @@ function EmptyState({ query }: { readonly query: string }) {
         <SearchEmptyIcon className="h-8 w-8 text-text-ghost" />
       </div>
       <p className="text-base font-medium text-foreground">
-        No results for &ldquo;{query}&rdquo;
+        {t.search.noResults} &ldquo;{query}&rdquo;
       </p>
       <p className="mt-1 text-sm text-text-tertiary">
-        Try a different title or check the spelling
+        {t.search.tryDifferent}
       </p>
     </motion.div>
   )
 }
 
-type IconProps = { readonly className?: string }
-
-function FilmIcon({ className }: IconProps) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" />
-      <line x1="7" y1="2" x2="7" y2="22" />
-      <line x1="17" y1="2" x2="17" y2="22" />
-      <line x1="2" y1="12" x2="22" y2="12" />
-    </svg>
-  )
-}
-
-function StarIcon({ className }: IconProps) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-    >
-      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-    </svg>
-  )
-}
-
-function SearchEmptyIcon({ className }: IconProps) {
+function SearchEmptyIcon({ className }: { readonly className?: string }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

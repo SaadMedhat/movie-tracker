@@ -9,12 +9,14 @@ import { getBackdropUrl, formatVoteAverage } from "@/lib/utils/media"
 import { getYear } from "@/lib/utils/date"
 import { MOVIE_GENRES } from "@/lib/constants"
 import { WatchlistToggle } from "@/components/library"
+import { useT } from "@/lib/i18n/translations"
 
 type HomeHeroProps = {
   readonly movie: Movie
 }
 
 export function HomeHero({ movie }: HomeHeroProps) {
+  const t = useT()
   const containerRef = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll({
     target: containerRef,
@@ -131,7 +133,7 @@ export function HomeHero({ movie }: HomeHeroProps) {
                 className="inline-flex h-11 items-center gap-2 rounded-lg bg-cinema-amber px-6 text-sm font-semibold text-cinema-amber-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <InfoIcon className="h-4 w-4" />
-                Details
+                {t.home.details}
               </Link>
               <WatchlistToggle
                 id={movie.id}

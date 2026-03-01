@@ -3,6 +3,7 @@ import { type Metadata } from "next"
 import { tmdbServerFetch } from "@/lib/api/tmdb-server"
 import { type Movie, type PaginatedResponse } from "@/types/movie"
 import { HomeHero, HomeSections } from "@/components/media"
+import { getServerT } from "@/lib/i18n/server"
 
 export const dynamic = "force-dynamic"
 
@@ -24,6 +25,7 @@ const pickHeroMovie = (movies: ReadonlyArray<Movie>): Movie => {
 }
 
 async function HeroSection() {
+  const t = await getServerT()
   try {
     const data = await tmdbServerFetch<PaginatedResponse<Movie>>(
       "trending/movie/week",
@@ -32,7 +34,7 @@ async function HeroSection() {
     )
 
     if (!data.results || data.results.length === 0) {
-      return <HomeError />
+      return <HomeError title={t.home.errorTitle} message={t.home.errorMessage} />
     }
 
     const heroMovie = pickHeroMovie(data.results)
@@ -44,19 +46,19 @@ async function HeroSection() {
       </>
     )
   } catch {
-    return <HomeError />
+    return <HomeError title={t.home.errorTitle} message={t.home.errorMessage} />
   }
 }
 
-function HomeError() {
+function HomeError({ title, message }: { readonly title: string; readonly message: string }) {
   return (
     <div className="flex min-h-[70vh] flex-col items-center justify-center px-4 text-center">
       <h1 className="font-display text-4xl font-bold tracking-tight text-foreground md:text-5xl">
-        Cinetrack
+        {title}
       </h1>
       <p className="mt-4 max-w-md text-text-secondary">
-        Could not load trending movies. Make sure your TMDB API key is configured
-        in <code className="rounded bg-surface-elevated px-1.5 py-0.5 text-sm">.env.local</code>.
+        {message}{" "}
+        <code className="rounded bg-surface-elevated px-1.5 py-0.5 text-sm">.env.local</code>.
       </p>
     </div>
   )

@@ -9,6 +9,7 @@ import { LibraryCard } from "@/components/library"
 import { type MediaStatus } from "@/types/library"
 import { staggerContainer, fadeInUp } from "@/lib/motion"
 import { cn } from "@/lib/utils"
+import { useT } from "@/lib/i18n/translations"
 
 /* ── Tab config ── */
 
@@ -19,39 +20,20 @@ type TabOption = {
   readonly emptyDescription: string
 }
 
-const TABS: ReadonlyArray<TabOption> = [
-  {
-    value: "all",
-    label: "All",
-    emptyTitle: "Your library is empty",
-    emptyDescription: "Start exploring trending films and series to build your collection.",
-  },
-  {
-    value: "watchlist",
-    label: "Watchlist",
-    emptyTitle: "Your watchlist is empty",
-    emptyDescription: "Browse the discover page and add something you want to watch.",
-  },
-  {
-    value: "watching",
-    label: "Watching",
-    emptyTitle: "Nothing in progress",
-    emptyDescription: "When you start watching a series, it will appear here.",
-  },
-  {
-    value: "watched",
-    label: "Watched",
-    emptyTitle: "No watched items yet",
-    emptyDescription: "Mark a film or series as watched to keep track of what you've seen.",
-  },
-] as const
-
 /* ── Page ── */
 
 export default function LibraryPage() {
+  const t = useT()
   const [activeTab, setActiveTab] = useState<MediaStatus | "all">("all")
   const isHydrated = useHydration()
   const entries = useLibraryStore((s) => s.entries)
+
+  const TABS: ReadonlyArray<TabOption> = [
+    { value: "all", label: t.library.all, emptyTitle: t.library.emptyAll, emptyDescription: t.library.emptyAllDesc },
+    { value: "watchlist", label: t.library.watchlist, emptyTitle: t.library.emptyWatchlist, emptyDescription: t.library.emptyWatchlistDesc },
+    { value: "watching", label: t.library.watching, emptyTitle: t.library.emptyWatching, emptyDescription: t.library.emptyWatchingDesc },
+    { value: "watched", label: t.library.watched, emptyTitle: t.library.emptyWatched, emptyDescription: t.library.emptyWatchedDesc },
+  ]
 
   const handleTabChange = useCallback((value: MediaStatus | "all"): void => {
     setActiveTab(value)
@@ -63,8 +45,8 @@ export default function LibraryPage() {
   }, [entries, activeTab])
 
   const currentTab = useMemo(() => {
-    const found = TABS.find((t) => t.value === activeTab)
-    return found ?? { value: "all" as const, label: "All", emptyTitle: "Your library is empty", emptyDescription: "Start exploring trending films and series to build your collection." }
+    const found = TABS.find((tab) => tab.value === activeTab)
+    return found ?? TABS[0]!
   }, [activeTab])
 
   const counts = useMemo(
@@ -86,7 +68,7 @@ export default function LibraryPage() {
         transition={{ duration: 0.4 }}
         className="mb-6 font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl"
       >
-        My Library
+        {t.library.title}
       </motion.h1>
 
       {/* Tabs */}

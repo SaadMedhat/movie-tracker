@@ -5,6 +5,7 @@ import { type TVShow } from "@/types/tv"
 import { type MediaType } from "@/types/library"
 import { PosterCard } from "@/components/media/poster-card"
 import { MediaRow } from "@/components/media/media-row"
+import { useT } from "@/lib/i18n/translations"
 
 type SimilarMediaProps = {
   readonly similar: ReadonlyArray<Movie | TVShow>
@@ -19,12 +20,13 @@ export function SimilarMedia({
   recommendations,
   mediaType,
 }: SimilarMediaProps) {
+  const t = useT()
   const items = recommendations.length > 0 ? recommendations : similar
 
   if (items.length === 0) return null
 
   return (
-    <MediaRow title="More Like This">
+    <MediaRow title={t.detail.moreLikeThis}>
       {items.slice(0, 20).map((item) => (
         <SimilarCard key={item.id} item={item} mediaType={mediaType} />
       ))}
