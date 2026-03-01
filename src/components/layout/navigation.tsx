@@ -89,8 +89,8 @@ export function Navigation() {
         </nav>
       </motion.header>
 
-      {/* Mobile language selector — fixed top-right */}
-      <div className="fixed top-3 right-3 z-50 block md:hidden">
+      {/* Mobile language selector — fixed top-left */}
+      <div className="fixed top-3 left-3 z-50 block md:hidden">
         <LanguageSelector />
       </div>
 

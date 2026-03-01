@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { motion, AnimatePresence } from "framer-motion"
@@ -10,6 +10,20 @@ import { getYear } from "@/lib/utils/date"
 import { cn } from "@/lib/utils"
 import { useMediaVideos } from "@/lib/api/queries"
 import { MuteToggle } from "@/components/ui/mute-toggle"
+
+// Global: only one mobile preview at a time.
+// When a card activates, it sets itself as active;
+// all other cards listen and close if they're not the active one.
+let activeMobilePreviewId: number | null = null
+const mobilePreviewListeners = new Set<(activeId: number | null) => void>()
+
+function setActiveMobilePreview(id: number | null) {
+  activeMobilePreviewId = id
+  mobilePreviewListeners.forEach((fn) => fn(id))
+}
+
+// Suppress unused read — activeMobilePreviewId is read inside setActiveMobilePreview's closure
+void activeMobilePreviewId
 
 type PosterCardProps = {
   readonly id: number
@@ -48,14 +62,47 @@ export function PosterCard({
   const [iframeReady, setIframeReady] = useState(false)
   const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
+  const cardRef = useRef<HTMLDivElement>(null)
 
   const { data: videoData } = useMediaVideos(mediaType, id, isHovering)
   const trailerKey = videoData ? getTrailerKey(videoData.results) : null
 
-  // Track whether a long press activated the preview — if so, block navigation
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const previewActiveRef = useRef(false)
 
+  // Close this preview if another card becomes active on mobile
+  useEffect(() => {
+    const listener = (activeId: number | null) => {
+      if (activeId !== null && activeId !== id && previewActiveRef.current) {
+        previewActiveRef.current = false
+        setIsHovering(false)
+        setIframeReady(false)
+      }
+    }
+    mobilePreviewListeners.add(listener)
+    return () => { mobilePreviewListeners.delete(listener) }
+  }, [id])
+
+  // Close preview when card scrolls out of viewport
+  useEffect(() => {
+    if (!isHovering || !previewActiveRef.current || !cardRef.current) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0]
+        if (entry && !entry.isIntersecting && previewActiveRef.current) {
+          previewActiveRef.current = false
+          setActiveMobilePreview(null)
+          setIsHovering(false)
+          setIframeReady(false)
+        }
+      },
+      { threshold: 0.3 }
+    )
+    observer.observe(cardRef.current)
+    return () => observer.disconnect()
+  }, [isHovering])
+
+  // Desktop hover
   const handleMouseEnter = useCallback(() => {
     if (leaveTimerRef.current) {
       clearTimeout(leaveTimerRef.current)
@@ -71,46 +118,41 @@ export function PosterCard({
     }, 100)
   }, [])
 
-  // Long press for mobile (500ms)
+  // Mobile long press (500ms) — activates preview; release does NOT close it
   const handleTouchStart = useCallback(() => {
     previewActiveRef.current = false
     longPressRef.current = setTimeout(() => {
       previewActiveRef.current = true
+      setActiveMobilePreview(id)
       setIsHovering(true)
     }, 500)
-  }, [])
+  }, [id])
 
   const handleTouchEnd = useCallback(() => {
+    // Only cancel if long press hasn't fired yet (short tap → navigate)
     if (longPressRef.current) {
       clearTimeout(longPressRef.current)
       longPressRef.current = null
     }
-    if (previewActiveRef.current) {
-      // Preview was active — close it, don't navigate
-      setIsHovering(false)
-      setIframeReady(false)
-      previewActiveRef.current = false
-    }
   }, [])
 
-  // Block click navigation if preview was just dismissed
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
+      // If preview is active on mobile, block navigation
       if (previewActiveRef.current) {
         e.preventDefault()
         return
       }
-      // Normal desktop click or short tap — navigate
       router.push(href)
     },
     [router, href]
   )
 
-  // Progress bar: visible while the trailer is actually playing
   const showProgress = isHovering && iframeReady && trailerKey
 
   return (
     <motion.div
+      ref={cardRef}
       variants={staggerItem}
       initial="hidden"
       animate="visible"
