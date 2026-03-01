@@ -89,11 +89,6 @@ export function Navigation() {
         </nav>
       </motion.header>
 
-      {/* Mobile language selector — fixed top-left */}
-      <div className="fixed top-3 left-3 z-50 block md:hidden">
-        <LanguageSelector />
-      </div>
-
       {/* Mobile nav — fixed bottom */}
       <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 z-50 block border-t border-border bg-background/90 backdrop-blur-xl md:hidden">
         <div className="flex h-16 items-center justify-around px-2">

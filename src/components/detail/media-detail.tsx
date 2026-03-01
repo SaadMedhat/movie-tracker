@@ -57,19 +57,22 @@ export function MediaDetail(props: MediaDetailProps) {
   const backdropUrl = getBackdropUrl(data.backdrop_path, "original")
   const posterUrl = getPosterUrl(data.poster_path, "xl")
   const trailerKey = getTrailerKey(data.videos.results)
-  const [backdropVideoReady, setBackdropVideoReady] = useState(false)
+  const [videoPlaying, setVideoPlaying] = useState(false)
   const [videoEnded, setVideoEnded] = useState(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
+  const iframeLoadedRef = useRef(false)
 
-  // Listen for YouTube player state changes (video ended = state 0)
+  // Listen for YouTube player state changes via postMessage
+  // State 1 = playing, State 0 = ended
   useEffect(() => {
     if (!trailerKey) return
     const handleMessage = (e: MessageEvent) => {
       if (typeof e.data !== "string") return
       try {
         const parsed = JSON.parse(e.data)
-        if (parsed.event === "onStateChange" && parsed.info === 0) {
-          setVideoEnded(true)
+        if (parsed.event === "onStateChange") {
+          if (parsed.info === 1) setVideoPlaying(true)
+          if (parsed.info === 0) setVideoEnded(true)
         }
       } catch {
         // ignore non-JSON messages
@@ -79,7 +82,20 @@ export function MediaDetail(props: MediaDetailProps) {
     return () => window.removeEventListener("message", handleMessage)
   }, [trailerKey])
 
-  const showBackdropVideo = trailerKey && backdropVideoReady && !videoEnded
+  // After iframe loads, subscribe to YouTube player state events
+  const handleIframeLoad = useCallback(() => {
+    iframeLoadedRef.current = true
+    // Tell YouTube to send us state change events
+    const iframe = iframeRef.current
+    if (iframe?.contentWindow) {
+      iframe.contentWindow.postMessage(
+        JSON.stringify({ event: "listening" }),
+        "*"
+      )
+    }
+  }, [])
+
+  const showBackdropVideo = trailerKey && videoPlaying && !videoEnded
 
   const getRating = useLibraryStore((s) => s.getRating)
   const setRating = useLibraryStore((s) => s.setRating)
@@ -146,7 +162,7 @@ export function MediaDetail(props: MediaDetailProps) {
               className="pointer-events-none absolute left-1/2 top-1/2 h-[200%] w-[200%] -translate-x-1/2 -translate-y-1/2"
               tabIndex={-1}
               aria-hidden
-              onLoad={() => setBackdropVideoReady(true)}
+              onLoad={handleIframeLoad}
             />
           </motion.div>
         ) : null}
