@@ -1,0 +1,380 @@
+"use client"
+
+import { useRef, useCallback } from "react"
+import Image from "next/image"
+import { motion, useScroll, useTransform } from "framer-motion"
+import { type MovieDetail } from "@/types/movie"
+import { type TVShowDetail } from "@/types/tv"
+import { type MediaType } from "@/types/library"
+import {
+  getBackdropUrl,
+  getPosterUrl,
+  formatRuntime,
+  formatVoteAverage,
+} from "@/lib/utils/media"
+import { getYear, formatReleaseDate } from "@/lib/utils/date"
+import { fadeInUp } from "@/lib/motion"
+import { WatchlistToggle } from "@/components/library"
+import { RatingStars } from "@/components/library"
+import { useLibraryStore } from "@/lib/stores/library-store"
+import { useHydration } from "@/hooks/use-hydration"
+import { CastRow } from "./cast-row"
+import { TrailerDialog } from "./trailer-dialog"
+import { SimilarMedia } from "./similar-media"
+
+type MediaDetailProps =
+  | {
+      readonly mediaType: "movie"
+      readonly data: MovieDetail
+    }
+  | {
+      readonly mediaType: "tv"
+      readonly data: TVShowDetail
+    }
+
+export function MediaDetail(props: MediaDetailProps) {
+  const { mediaType, data } = props
+  const containerRef = useRef<HTMLDivElement>(null)
+  const isHydrated = useHydration()
+
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end start"],
+  })
+
+  const imageY = useTransform(scrollYProgress, [0, 1], ["0%", "20%"])
+  const imageOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0.2])
+
+  const title = mediaType === "movie" ? data.title : data.name
+  const date =
+    mediaType === "movie" ? data.release_date : data.first_air_date
+  const year = getYear(date)
+  const formattedDate = formatReleaseDate(date)
+  const backdropUrl = getBackdropUrl(data.backdrop_path, "original")
+  const posterUrl = getPosterUrl(data.poster_path, "xl")
+
+  const getRating = useLibraryStore((s) => s.getRating)
+  const setRating = useLibraryStore((s) => s.setRating)
+  const isInLibrary = useLibraryStore((s) => s.isInLibrary(data.id, mediaType))
+  const addToLibrary = useLibraryStore((s) => s.addToLibrary)
+
+  const currentRating = isHydrated ? getRating(data.id, mediaType) : null
+
+  const handleRate = useCallback(
+    (rating: number): void => {
+      if (!isInLibrary) {
+        addToLibrary({
+          id: data.id,
+          mediaType,
+          title,
+          posterPath: data.poster_path,
+          status: "watched",
+        })
+      }
+      setRating(data.id, mediaType, rating)
+    },
+    [data.id, mediaType, title, data.poster_path, isInLibrary, addToLibrary, setRating]
+  )
+
+  return (
+    <div className="-mt-16">
+      {/* Hero backdrop */}
+      <section
+        ref={containerRef}
+        className="relative h-[50vh] w-full overflow-hidden md:h-[60vh]"
+      >
+        {backdropUrl ? (
+          <motion.div
+            style={{ y: imageY, opacity: imageOpacity }}
+            className="absolute inset-0 -top-[10%] h-[120%]"
+          >
+            <Image
+              src={backdropUrl}
+              alt={title}
+              fill
+              priority
+              sizes="100vw"
+              quality={85}
+              className="object-cover object-[center_20%]"
+            />
+          </motion.div>
+        ) : (
+          <div className="absolute inset-0 bg-surface" />
+        )}
+
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-background/10" />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/70 via-transparent to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
+      </section>
+
+      {/* Content */}
+      <div className="relative z-10 mx-auto max-w-7xl px-5 md:px-12 lg:px-16">
+        <div className="flex flex-col gap-8 md:-mt-40 md:flex-row md:gap-10">
+          {/* Poster */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="hidden flex-shrink-0 md:block"
+          >
+            <div className="relative aspect-[2/3] w-64 overflow-hidden rounded-lg shadow-2xl lg:w-72">
+              {posterUrl ? (
+                <Image
+                  src={posterUrl}
+                  alt={title}
+                  fill
+                  sizes="288px"
+                  className="object-cover"
+                />
+              ) : (
+                <div className="h-full w-full bg-surface-elevated" />
+              )}
+            </div>
+          </motion.div>
+
+          {/* Info */}
+          <div className="min-w-0 flex-1 space-y-5 -mt-20 md:mt-0">
+            {/* Title */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                delay: 0.1,
+                duration: 0.5,
+                ease: [0.25, 0.46, 0.45, 0.94],
+              }}
+            >
+              <h1 className="font-display text-3xl font-bold leading-tight tracking-tight text-foreground md:text-4xl lg:text-5xl">
+                {title}
+              </h1>
+              {data.tagline ? (
+                <p className="mt-1 text-sm italic text-text-tertiary">
+                  {data.tagline}
+                </p>
+              ) : null}
+            </motion.div>
+
+            {/* Meta */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                delay: 0.2,
+                duration: 0.5,
+                ease: [0.25, 0.46, 0.45, 0.94],
+              }}
+              className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-text-secondary"
+            >
+              {year ? <span>{formattedDate}</span> : null}
+
+              {mediaType === "movie" && (props.data as MovieDetail).runtime > 0 ? (
+                <>
+                  <Dot />
+                  <span>{formatRuntime((props.data as MovieDetail).runtime)}</span>
+                </>
+              ) : null}
+
+              {mediaType === "tv" ? (
+                <>
+                  <Dot />
+                  <span>
+                    {(props.data as TVShowDetail).number_of_seasons} Season
+                    {(props.data as TVShowDetail).number_of_seasons !== 1
+                      ? "s"
+                      : ""}
+                  </span>
+                  <Dot />
+                  <span>
+                    {(props.data as TVShowDetail).number_of_episodes} Episodes
+                  </span>
+                </>
+              ) : null}
+
+              {data.genres.length > 0 ? (
+                <>
+                  <Dot />
+                  <span>{data.genres.map((g) => g.name).join(", ")}</span>
+                </>
+              ) : null}
+
+              {data.vote_average > 0 ? (
+                <>
+                  <Dot />
+                  <span className="flex items-center gap-1 text-cinema-amber">
+                    <StarIcon className="h-3.5 w-3.5" />
+                    {formatVoteAverage(data.vote_average)}
+                  </span>
+                </>
+              ) : null}
+
+              {data.status ? (
+                <>
+                  <Dot />
+                  <span>{data.status}</span>
+                </>
+              ) : null}
+            </motion.div>
+
+            {/* TV-specific extra info */}
+            {mediaType === "tv" ? (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  delay: 0.25,
+                  duration: 0.5,
+                  ease: [0.25, 0.46, 0.45, 0.94],
+                }}
+                className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-text-tertiary"
+              >
+                {(props.data as TVShowDetail).first_air_date ? (
+                  <span>
+                    First aired:{" "}
+                    {formatReleaseDate(
+                      (props.data as TVShowDetail).first_air_date
+                    )}
+                  </span>
+                ) : null}
+                {(props.data as TVShowDetail).last_air_date ? (
+                  <>
+                    <Dot />
+                    <span>
+                      Last aired:{" "}
+                      {formatReleaseDate(
+                        (props.data as TVShowDetail).last_air_date
+                      )}
+                    </span>
+                  </>
+                ) : null}
+              </motion.div>
+            ) : null}
+
+            {/* Actions */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                delay: 0.3,
+                duration: 0.5,
+                ease: [0.25, 0.46, 0.45, 0.94],
+              }}
+              className="flex flex-wrap items-center gap-3"
+            >
+              <WatchlistToggle
+                id={data.id}
+                mediaType={mediaType}
+                title={title}
+                posterPath={data.poster_path}
+                size="lg"
+              />
+              <TrailerDialog videos={data.videos} title={title} />
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-text-tertiary">Your rating</span>
+                <RatingStars
+                  rating={currentRating}
+                  onRate={handleRate}
+                  size="md"
+                />
+              </div>
+            </motion.div>
+
+            {/* Overview */}
+            <motion.div
+              variants={fadeInUp}
+              initial="hidden"
+              animate="visible"
+              transition={{ delay: 0.4 }}
+            >
+              {data.overview ? (
+                <p className="max-w-2xl text-sm leading-relaxed text-text-secondary md:text-base">
+                  {data.overview}
+                </p>
+              ) : null}
+            </motion.div>
+
+            {/* Director / Creator */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5, duration: 0.4 }}
+            >
+              <CrewHighlight data={data} mediaType={mediaType} />
+            </motion.div>
+          </div>
+        </div>
+
+        {/* Cast */}
+        <div className="mt-12">
+          <CastRow cast={data.credits.cast} />
+        </div>
+
+        {/* Similar / Recommendations */}
+        <div className="mt-12 pb-12">
+          <SimilarMedia
+            similar={data.similar.results}
+            recommendations={data.recommendations.results}
+            mediaType={mediaType}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Small helper components ── */
+
+function Dot() {
+  return <span className="text-text-ghost">·</span>
+}
+
+function CrewHighlight({
+  data,
+  mediaType,
+}: {
+  readonly data: MovieDetail | TVShowDetail
+  readonly mediaType: MediaType
+}) {
+  if (mediaType === "movie") {
+    const directors = (data as MovieDetail).credits.crew.filter(
+      (c) => c.job === "Director"
+    )
+    if (directors.length === 0) return null
+    return (
+      <p className="text-sm text-text-secondary">
+        <span className="text-text-tertiary">Directed by</span>{" "}
+        <span className="font-medium text-foreground">
+          {directors.map((d) => d.name).join(", ")}
+        </span>
+      </p>
+    )
+  }
+
+  const creators = (data as TVShowDetail).credits.crew.filter(
+    (c) => c.job === "Executive Producer"
+  )
+  if (creators.length === 0) return null
+  return (
+    <p className="text-sm text-text-secondary">
+      <span className="text-text-tertiary">Created by</span>{" "}
+      <span className="font-medium text-foreground">
+        {creators
+          .slice(0, 3)
+          .map((c) => c.name)
+          .join(", ")}
+      </span>
+    </p>
+  )
+}
+
+function StarIcon({ className }: { readonly className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+    >
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+    </svg>
+  )
+}
