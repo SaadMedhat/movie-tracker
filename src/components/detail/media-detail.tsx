@@ -1,11 +1,10 @@
 "use client"
 
-import { useRef, useState, useCallback, useEffect } from "react"
+import { type ReactNode, useRef, useState, useCallback, useEffect } from "react"
 import Image from "next/image"
-import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
+import { motion, useScroll, useTransform } from "framer-motion"
 import { type MovieDetail } from "@/types/movie"
 import { type TVShowDetail } from "@/types/tv"
-import { type MediaType } from "@/types/library"
 import {
   getBackdropUrl,
   getPosterUrl,
@@ -15,8 +14,7 @@ import {
 } from "@/lib/utils/media"
 import { getYear, formatReleaseDate } from "@/lib/utils/date"
 import { fadeInUp } from "@/lib/motion"
-import { WatchlistToggle } from "@/components/library"
-import { RatingStars } from "@/components/library"
+import { WatchlistToggle, RatingStars } from "@/components/library"
 import { useLibraryStore } from "@/lib/stores/library-store"
 import { useHydration } from "@/hooks/use-hydration"
 import { CastRow } from "./cast-row"
@@ -35,74 +33,58 @@ type MediaDetailProps =
       readonly data: TVShowDetail
     }
 
-export function MediaDetail(props: MediaDetailProps) {
+type YouTubeStateMessage = {
+  readonly event?: string
+  readonly info?: number
+}
+
+export function MediaDetail(props: MediaDetailProps): ReactNode {
+  // 1. Constants & props
   const { mediaType, data } = props
-  const t = useT()
-  const containerRef = useRef<HTMLDivElement>(null)
-  const isHydrated = useHydration()
-
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start start", "end start"],
-  })
-
-  const imageY = useTransform(scrollYProgress, [0, 1], ["0%", "20%"])
-  const imageOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0.2])
-
   const title = mediaType === "movie" ? data.title : data.name
-  const date =
-    mediaType === "movie" ? data.release_date : data.first_air_date
+  const date = mediaType === "movie" ? data.release_date : data.first_air_date
   const year = getYear(date)
   const formattedDate = formatReleaseDate(date)
   const backdropUrl = getBackdropUrl(data.backdrop_path, "original")
   const posterUrl = getPosterUrl(data.poster_path, "xl")
   const trailerKey = getTrailerKey(data.videos.results)
-  const [videoPlaying, setVideoPlaying] = useState(false)
-  const [videoEnded, setVideoEnded] = useState(false)
-  const iframeRef = useRef<HTMLIFrameElement>(null)
-  const iframeLoadedRef = useRef(false)
 
-  // Listen for YouTube player state changes via postMessage
-  // State 1 = playing, State 0 = ended
-  useEffect(() => {
-    if (!trailerKey) return
-    const handleMessage = (e: MessageEvent) => {
-      if (typeof e.data !== "string") return
-      try {
-        const parsed = JSON.parse(e.data)
-        if (parsed.event === "onStateChange") {
-          if (parsed.info === 1) setVideoPlaying(true)
-          if (parsed.info === 0) setVideoEnded(true)
-        }
-      } catch {
-        // ignore non-JSON messages
-      }
-    }
-    window.addEventListener("message", handleMessage)
-    return () => window.removeEventListener("message", handleMessage)
-  }, [trailerKey])
+  // 2. Custom hooks
+  const t = useT()
+  const isHydrated = useHydration()
 
-  // After iframe loads, subscribe to YouTube player state events
-  const handleIframeLoad = useCallback(() => {
-    iframeLoadedRef.current = true
-    // Tell YouTube to send us state change events
-    const iframe = iframeRef.current
-    if (iframe?.contentWindow) {
-      iframe.contentWindow.postMessage(
-        JSON.stringify({ event: "listening" }),
-        "*"
-      )
-    }
-  }, [])
-
-  const showBackdropVideo = trailerKey && videoPlaying && !videoEnded
-
+  // 3. Library hooks
   const getRating = useLibraryStore((s) => s.getRating)
   const setRating = useLibraryStore((s) => s.setRating)
   const isInLibrary = useLibraryStore((s) => s.isInLibrary(data.id, mediaType))
   const addToLibrary = useLibraryStore((s) => s.addToLibrary)
-
   const currentRating = isHydrated ? getRating(data.id, mediaType) : null
+
+  // 4. useState / useRef
+  const containerRef = useRef<HTMLDivElement>(null)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const [videoPlaying, setVideoPlaying] = useState(false)
+  const [videoEnded, setVideoEnded] = useState(false)
+
+  // Scroll-driven animations (depend on containerRef)
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end start"],
+  })
+  const imageY = useTransform(scrollYProgress, [0, 1], ["0%", "20%"])
+  const imageOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0.2])
+
+  const showBackdropVideo = trailerKey && videoPlaying && !videoEnded
+
+  // 6. useCallback
+  const handleIframeLoad = useCallback((): void => {
+    const iframe = iframeRef.current
+    if (!iframe?.contentWindow) return
+    iframe.contentWindow.postMessage(
+      JSON.stringify({ event: "listening" }),
+      "*"
+    )
+  }, [])
 
   const handleRate = useCallback(
     (rating: number): void => {
@@ -119,6 +101,25 @@ export function MediaDetail(props: MediaDetailProps) {
     },
     [data.id, mediaType, title, data.poster_path, isInLibrary, addToLibrary, setRating]
   )
+
+  // 7. useEffect
+  useEffect(() => {
+    if (!trailerKey) return
+    const handleMessage = (e: MessageEvent): void => {
+      if (typeof e.data !== "string") return
+      try {
+        const parsed: YouTubeStateMessage = JSON.parse(e.data)
+        if (parsed.event === "onStateChange") {
+          if (parsed.info === 1) setVideoPlaying(true)
+          if (parsed.info === 0) setVideoEnded(true)
+        }
+      } catch {
+        // ignore non-JSON messages
+      }
+    }
+    window.addEventListener("message", handleMessage)
+    return () => window.removeEventListener("message", handleMessage)
+  }, [trailerKey])
 
   return (
     <div className="-mt-16">
@@ -242,10 +243,10 @@ export function MediaDetail(props: MediaDetailProps) {
             >
               {year ? <span>{formattedDate}</span> : null}
 
-              {mediaType === "movie" && (props.data as MovieDetail).runtime > 0 ? (
+              {mediaType === "movie" && data.runtime > 0 ? (
                 <>
                   <Dot />
-                  <span>{formatRuntime((props.data as MovieDetail).runtime)}</span>
+                  <span>{formatRuntime(data.runtime)}</span>
                 </>
               ) : null}
 
@@ -253,14 +254,14 @@ export function MediaDetail(props: MediaDetailProps) {
                 <>
                   <Dot />
                   <span>
-                    {(props.data as TVShowDetail).number_of_seasons}{" "}
-                    {(props.data as TVShowDetail).number_of_seasons !== 1
+                    {data.number_of_seasons}{" "}
+                    {data.number_of_seasons !== 1
                       ? t.detail.seasons
                       : t.detail.season}
                   </span>
                   <Dot />
                   <span>
-                    {(props.data as TVShowDetail).number_of_episodes} {t.detail.episodes}
+                    {data.number_of_episodes} {t.detail.episodes}
                   </span>
                 </>
               ) : null}
@@ -302,22 +303,18 @@ export function MediaDetail(props: MediaDetailProps) {
                 }}
                 className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-text-tertiary"
               >
-                {(props.data as TVShowDetail).first_air_date ? (
+                {data.first_air_date ? (
                   <span>
                     {t.detail.firstAired}{" "}
-                    {formatReleaseDate(
-                      (props.data as TVShowDetail).first_air_date
-                    )}
+                    {formatReleaseDate(data.first_air_date)}
                   </span>
                 ) : null}
-                {(props.data as TVShowDetail).last_air_date ? (
+                {data.last_air_date ? (
                   <>
                     <Dot />
                     <span>
                       {t.detail.lastAired}{" "}
-                      {formatReleaseDate(
-                        (props.data as TVShowDetail).last_air_date
-                      )}
+                      {formatReleaseDate(data.last_air_date)}
                     </span>
                   </>
                 ) : null}
@@ -373,7 +370,7 @@ export function MediaDetail(props: MediaDetailProps) {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5, duration: 0.4 }}
             >
-              <CrewHighlight data={data} mediaType={mediaType} />
+              <CrewHighlight {...props} />
             </motion.div>
           </div>
         </div>
@@ -398,20 +395,20 @@ export function MediaDetail(props: MediaDetailProps) {
 
 /* ── Small helper components ── */
 
-function Dot() {
+function Dot(): ReactNode {
   return <span className="text-text-ghost">·</span>
 }
 
-function CrewHighlight({
-  data,
-  mediaType,
-}: {
-  readonly data: MovieDetail | TVShowDetail
-  readonly mediaType: MediaType
-}) {
+type CrewHighlightProps =
+  | { readonly mediaType: "movie"; readonly data: MovieDetail }
+  | { readonly mediaType: "tv"; readonly data: TVShowDetail }
+
+function CrewHighlight(props: CrewHighlightProps): ReactNode {
+  const { mediaType, data } = props
   const t = useT()
+
   if (mediaType === "movie") {
-    const directors = (data as MovieDetail).credits.crew.filter(
+    const directors = data.credits.crew.filter(
       (c) => c.job === "Director"
     )
     if (directors.length === 0) return null
@@ -425,7 +422,7 @@ function CrewHighlight({
     )
   }
 
-  const creators = (data as TVShowDetail).credits.crew.filter(
+  const creators = data.credits.crew.filter(
     (c) => c.job === "Executive Producer"
   )
   if (creators.length === 0) return null
@@ -442,7 +439,11 @@ function CrewHighlight({
   )
 }
 
-function StarIcon({ className }: { readonly className?: string }) {
+type StarIconProps = {
+  readonly className?: string
+}
+
+function StarIcon({ className }: StarIconProps): ReactNode {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -454,4 +455,3 @@ function StarIcon({ className }: { readonly className?: string }) {
     </svg>
   )
 }
-

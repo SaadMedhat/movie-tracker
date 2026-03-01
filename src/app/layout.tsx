@@ -2,7 +2,7 @@ import { type Metadata } from "next"
 import { Geist } from "next/font/google"
 import { Space_Grotesk } from "next/font/google"
 import { Providers } from "@/components/providers"
-import { Navigation } from "@/components/layout"
+import { Navigation, ScrollToTop } from "@/components/layout"
 import "./globals.css"
 
 const geistSans = Geist({
@@ -56,6 +56,7 @@ export default function RootLayout({
           Skip to content
         </a>
         <Providers>
+          <ScrollToTop />
           <Navigation />
           <main id="main-content" className="min-h-screen pb-20 md:pb-0 md:pt-16">
             {children}
