@@ -20,6 +20,7 @@ import { useHydration } from "@/hooks/use-hydration"
 import { CastRow } from "./cast-row"
 import { TrailerDialog } from "./trailer-dialog"
 import { SimilarMedia } from "./similar-media"
+import { WatchProviders } from "./watch-providers"
 import { MuteToggle } from "@/components/ui/mute-toggle"
 import { useT } from "@/lib/i18n/translations"
 
@@ -416,6 +417,8 @@ export function MediaDetail(props: MediaDetailProps): ReactNode {
             >
               <CrewHighlight {...props} />
             </motion.div>
+
+            <WatchProviders id={data.id} mediaType={mediaType} />
           </div>
         </div>
 

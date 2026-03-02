@@ -3,11 +3,13 @@ import {
   POSTER_SIZES,
   BACKDROP_SIZES,
   PROFILE_SIZES,
+  LOGO_SIZES,
 } from "@/lib/constants"
 
 type PosterSize = keyof typeof POSTER_SIZES
 type BackdropSize = keyof typeof BACKDROP_SIZES
 type ProfileSize = keyof typeof PROFILE_SIZES
+type LogoSize = keyof typeof LOGO_SIZES
 
 export const getPosterUrl = (
   path: string | null,
@@ -66,3 +68,14 @@ export const getMediaTitle = (
 export const getMediaDate = (
   media: { readonly release_date: string | undefined; readonly first_air_date: string | undefined }
 ): string => media.release_date ?? media.first_air_date ?? ""
+
+export const getLogoUrl = (
+  path: string | null,
+  size: LogoSize = "md"
+): string | null => {
+  if (!path) return null
+  return `${TMDB_IMAGE_BASE}/${LOGO_SIZES[size]}${path}`
+}
+
+export const getCountryFromLanguage = (language: string): string =>
+  language.split("-").at(-1) ?? "US"

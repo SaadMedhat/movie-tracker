@@ -1,8 +1,8 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { getTrendingMovies, getPopularMovies, getTopRatedMovies, getUpcomingMovies, getNowPlayingMovies, getMovieDetail, discoverMovies, getMovieGenres, getMovieVideos } from "./movies"
-import { getTrendingTV, getPopularTV, getTopRatedTV, getTVDetail, discoverTV, getTVGenres, getTVVideos } from "./tv"
+import { getTrendingMovies, getPopularMovies, getTopRatedMovies, getUpcomingMovies, getNowPlayingMovies, getMovieDetail, discoverMovies, getMovieGenres, getMovieVideos, getMovieWatchProviders } from "./movies"
+import { getTrendingTV, getPopularTV, getTopRatedTV, getTVDetail, discoverTV, getTVGenres, getTVVideos, getTVWatchProviders } from "./tv"
 import { searchMulti } from "./search"
 import { STALE_TIMES } from "@/lib/constants"
 import { useLanguageStore } from "@/lib/stores/language-store"
@@ -155,6 +155,22 @@ export const useMediaVideos = (
       mediaType === "movie" ? getMovieVideos(id) : getTVVideos(id),
     staleTime: STALE_TIMES.DETAIL,
     enabled: enabled && id > 0,
+  })
+}
+
+/* ── Watch Providers ── */
+
+export const useWatchProviders = (
+  mediaType: "movie" | "tv",
+  id: number
+) => {
+  const language = useLanguage()
+  return useQuery({
+    queryKey: ["watch-providers", mediaType, id, language],
+    queryFn: () =>
+      mediaType === "movie" ? getMovieWatchProviders(id) : getTVWatchProviders(id),
+    staleTime: STALE_TIMES.PROVIDERS,
+    enabled: id > 0,
   })
 }
 

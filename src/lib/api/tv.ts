@@ -1,6 +1,7 @@
 import { tmdbFetch } from "./tmdb-client"
 import { type PaginatedResponse, type Genre, type VideoResults } from "@/types/movie"
 import { type TVShow, type TVShowDetail } from "@/types/tv"
+import { type WatchProvidersResponse } from "@/types/watch-providers"
 
 export const getTrendingTV = (
   timeWindow: "day" | "week" = "week"
@@ -36,6 +37,9 @@ export const discoverTV = (
 
 export const getTVVideos = (id: number): Promise<VideoResults> =>
   tmdbFetch<VideoResults>(`tv/${id}/videos`)
+
+export const getTVWatchProviders = (id: number): Promise<WatchProvidersResponse> =>
+  tmdbFetch<WatchProvidersResponse>(`tv/${id}/watch/providers`)
 
 export const getTVGenres = (): Promise<{
   readonly genres: ReadonlyArray<Genre>

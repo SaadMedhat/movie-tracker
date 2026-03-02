@@ -65,4 +65,11 @@ export const STALE_TIMES = {
   DETAIL: 1000 * 60 * 60,
   SEARCH: 1000 * 60 * 5,
   GENRES: 1000 * 60 * 60 * 24,
+  PROVIDERS: 1000 * 60 * 60 * 24,
+} as const
+
+export const LOGO_SIZES = {
+  sm: "w92",
+  md: "w154",
+  lg: "w185",
 } as const

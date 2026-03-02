@@ -6,6 +6,7 @@ import {
   type Genre,
   type VideoResults,
 } from "@/types/movie"
+import { type WatchProvidersResponse } from "@/types/watch-providers"
 
 export const getTrendingMovies = (
   timeWindow: "day" | "week" = "week"
@@ -55,6 +56,9 @@ export const discoverMovies = (
 
 export const getMovieVideos = (id: number): Promise<VideoResults> =>
   tmdbFetch<VideoResults>(`movie/${id}/videos`)
+
+export const getMovieWatchProviders = (id: number): Promise<WatchProvidersResponse> =>
+  tmdbFetch<WatchProvidersResponse>(`movie/${id}/watch/providers`)
 
 export const getMovieGenres = (): Promise<{
   readonly genres: ReadonlyArray<Genre>

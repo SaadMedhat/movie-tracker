@@ -1,15 +1,15 @@
 "use client"
 
 import { useMemo, useCallback } from "react"
-import { motion, AnimatePresence, LayoutGroup } from "framer-motion"
-import { useQuery } from "@tanstack/react-query"
-import { useQueryState, parseAsString, parseAsInteger } from "nuqs"
+import { motion } from "framer-motion"
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query"
+import { useQueryState, parseAsString } from "nuqs"
 import { discoverMovies, getMovieGenres } from "@/lib/api/movies"
 import { discoverTV, getTVGenres } from "@/lib/api/tv"
-import { type Movie, type Genre } from "@/types/movie"
+import { type Movie, type Genre, type PaginatedResponse } from "@/types/movie"
 import { type TVShow } from "@/types/tv"
 import { PosterCard } from "@/components/media"
-import { staggerContainer, staggerItem, fadeInUp } from "@/lib/motion"
+import { fadeInUp } from "@/lib/motion"
 import { STALE_TIMES } from "@/lib/constants"
 import { cn } from "@/lib/utils"
 import { useT } from "@/lib/i18n/translations"
@@ -45,7 +45,6 @@ export default function DiscoverPage() {
   const [year, setYear] = useQueryState("year", parseAsString.withDefault("Any"))
   const [sortBy, setSortBy] = useQueryState("sort", parseAsString.withDefault("popularity.desc"))
   const [minRating, setMinRating] = useQueryState("rating", parseAsString.withDefault(""))
-  const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1))
 
   const sortOptions: ReadonlyArray<SortOption> = mediaType === "movie"
     ? [
@@ -66,33 +65,28 @@ export default function DiscoverPage() {
     Classics: t.discover.classics,
   }
 
-  /* Reset page when filters change */
+  /* Reset filters */
   const changeMediaType = useCallback((value: string): void => {
     void setMediaType(value)
     void setGenreId("")
     void setSortBy("popularity.desc")
-    void setPage(1)
-  }, [setMediaType, setGenreId, setSortBy, setPage])
+  }, [setMediaType, setGenreId, setSortBy])
 
   const changeGenre = useCallback((value: string): void => {
     void setGenreId(value)
-    void setPage(1)
-  }, [setGenreId, setPage])
+  }, [setGenreId])
 
   const changeYear = useCallback((value: string): void => {
     void setYear(value)
-    void setPage(1)
-  }, [setYear, setPage])
+  }, [setYear])
 
   const changeSort = useCallback((value: string): void => {
     void setSortBy(value)
-    void setPage(1)
-  }, [setSortBy, setPage])
+  }, [setSortBy])
 
   const changeRating = useCallback((value: string): void => {
     void setMinRating(value)
-    void setPage(1)
-  }, [setMinRating, setPage])
+  }, [setMinRating])
 
   /* Genres */
   const movieGenres = useQuery({
@@ -112,11 +106,10 @@ export default function DiscoverPage() {
       ? movieGenres.data?.genres ?? []
       : tvGenres.data?.genres ?? []
 
-  /* Build params */
-  const discoverParams = useMemo((): Record<string, string> => {
+  /* Build base params (without page — useInfiniteQuery handles pagination) */
+  const baseParams = useMemo((): Record<string, string> => {
     const params: Record<string, string> = {
       sort_by: sortBy,
-      page: page.toString(),
     }
 
     if (genreId) {
@@ -134,35 +127,51 @@ export default function DiscoverPage() {
     })
 
     return params
-  }, [sortBy, page, genreId, minRating, year, mediaType])
+  }, [sortBy, genreId, minRating, year, mediaType])
 
-  /* Fetch */
-  const movieResults = useQuery({
-    queryKey: ["movies", "discover", discoverParams, language],
-    queryFn: () => discoverMovies(discoverParams),
+  /* Fetch with infinite query — accumulates pages */
+  const movieResults = useInfiniteQuery({
+    queryKey: ["movies", "discover", baseParams, language],
+    queryFn: ({ pageParam }): Promise<PaginatedResponse<Movie>> =>
+      discoverMovies({ ...baseParams, page: pageParam.toString() }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage): number | undefined =>
+      lastPage.page < lastPage.total_pages && lastPage.page < 500
+        ? lastPage.page + 1
+        : undefined,
     staleTime: STALE_TIMES.TRENDING,
     enabled: mediaType === "movie",
   })
 
-  const tvResults = useQuery({
-    queryKey: ["tv", "discover", discoverParams, language],
-    queryFn: () => discoverTV(discoverParams),
+  const tvResults = useInfiniteQuery({
+    queryKey: ["tv", "discover", baseParams, language],
+    queryFn: ({ pageParam }): Promise<PaginatedResponse<TVShow>> =>
+      discoverTV({ ...baseParams, page: pageParam.toString() }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage): number | undefined =>
+      lastPage.page < lastPage.total_pages && lastPage.page < 500
+        ? lastPage.page + 1
+        : undefined,
     staleTime: STALE_TIMES.TRENDING,
     enabled: mediaType === "tv",
   })
 
-  const isLoading =
-    mediaType === "movie" ? movieResults.isLoading : tvResults.isLoading
-  const totalPages =
-    mediaType === "movie"
-      ? movieResults.data?.total_pages ?? 0
-      : tvResults.data?.total_pages ?? 0
-  const results: ReadonlyArray<Movie | TVShow> =
-    mediaType === "movie"
-      ? movieResults.data?.results ?? []
-      : tvResults.data?.results ?? []
+  const activeQuery = mediaType === "movie" ? movieResults : tvResults
+  const isLoading = activeQuery.isLoading
+  const isFetchingNext = activeQuery.isFetchingNextPage
+  const hasMore = activeQuery.hasNextPage ?? false
 
-  const hasMore = page < totalPages && page < 500
+  const results: ReadonlyArray<Movie | TVShow> = useMemo((): ReadonlyArray<Movie | TVShow> => {
+    const raw: ReadonlyArray<Movie | TVShow> = mediaType === "movie"
+      ? movieResults.data?.pages.flatMap((p) => p.results) ?? []
+      : tvResults.data?.pages.flatMap((p) => p.results) ?? []
+    const seen = new Set<number>()
+    return raw.filter((item) => {
+      if (seen.has(item.id)) return false
+      seen.add(item.id)
+      return true
+    })
+  }, [mediaType, movieResults.data, tvResults.data])
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 md:py-12">
@@ -289,43 +298,45 @@ export default function DiscoverPage() {
       </motion.div>
 
       {/* Results */}
-      <LayoutGroup>
-        <AnimatePresence mode="wait">
-          {isLoading ? null : results.length === 0 ? (
+      {isLoading ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div
+              key={`skeleton-${i.toString()}`}
+              className="aspect-2/3 animate-pulse rounded-lg bg-surface-elevated"
+            />
+          ))}
+        </div>
+      ) : results.length === 0 ? (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center justify-center py-20 text-center"
+        >
+          <div className="mb-4 rounded-full bg-surface-elevated p-4">
+            <FilmIcon className="h-8 w-8 text-text-ghost" />
+          </div>
+          <p className="text-base font-medium text-foreground">
+            {t.discover.noResults}
+          </p>
+          <p className="mt-1 text-sm text-text-tertiary">
+            {t.discover.adjustFilters}
+          </p>
+        </motion.div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          {results.map((item) => (
             <motion.div
-              key="empty"
-              initial={{ opacity: 0, y: 10 }}
+              key={item.id}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="flex flex-col items-center justify-center py-20 text-center"
+              transition={{ type: "spring", stiffness: 120, damping: 18 }}
             >
-              <div className="mb-4 rounded-full bg-surface-elevated p-4">
-                <FilmIcon className="h-8 w-8 text-text-ghost" />
-              </div>
-              <p className="text-base font-medium text-foreground">
-                {t.discover.noResults}
-              </p>
-              <p className="mt-1 text-sm text-text-tertiary">
-                {t.discover.adjustFilters}
-              </p>
+              <ResultCard item={item} mediaType={mediaType} />
             </motion.div>
-          ) : (
-            <motion.div
-              key={`${mediaType}-${genreId}-${year}-${sortBy}-${minRating}`}
-              variants={staggerContainer}
-              initial="hidden"
-              animate="visible"
-              className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
-            >
-              {results.map((item) => (
-                <motion.div key={item.id} variants={staggerItem} layout>
-                  <ResultCard item={item} mediaType={mediaType} />
-                </motion.div>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </LayoutGroup>
+          ))}
+        </div>
+      )}
 
       {/* Load more */}
       {hasMore && results.length > 0 ? (
@@ -337,11 +348,11 @@ export default function DiscoverPage() {
         >
           <button
             type="button"
-            onClick={() => void setPage(page + 1)}
-            disabled={isLoading}
+            onClick={() => void activeQuery.fetchNextPage()}
+            disabled={isFetchingNext}
             className="inline-flex h-11 items-center rounded-lg border border-border bg-surface-elevated px-8 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
           >
-            {isLoading ? t.discover.loading : t.discover.loadMore}
+            {isFetchingNext ? t.discover.loading : t.discover.loadMore}
           </button>
         </motion.div>
       ) : null}
