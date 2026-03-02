@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
 import { motion } from "framer-motion"
+import { useQueryState, parseAsString } from "nuqs"
 import { useDebounce } from "@/hooks/use-debounce"
 import { useSearchMulti, useTrendingMovies } from "@/lib/api/queries"
 import { type MultiSearchResult } from "@/lib/api/search"
@@ -14,7 +14,7 @@ const CARD_CLASS = "w-full"
 
 export default function SearchPage() {
   const t = useT()
-  const [query, setQuery] = useState("")
+  const [query, setQuery] = useQueryState("q", parseAsString.withDefault(""))
   const debouncedQuery = useDebounce(query, 300)
 
   const searchResults = useSearchMulti(debouncedQuery)
